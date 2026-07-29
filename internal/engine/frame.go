@@ -11,6 +11,6 @@ const (
 
 // Frame - снимок мира в один момент (это и рисует рендер).
 type Frame struct {
-	Index      int                    
-	Goroutines map[int]GoroutineState 
+	Goroutines map[int]GoroutineState
+	Index      int
 }
