@@ -1,0 +1,42 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go
+vendor/
+coverage.out
+coverage.html
+*.coverprofile
+profile.cov
+
+# WASM / web build artifacts
+web/*.wasm
+web/wasm_exec.js
+web/wasm_exec_node.js
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Debug / misc
+debug
+__debug_bin*
+*.log
