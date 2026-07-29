@@ -1,12 +1,14 @@
-.PHONY: build test lint wasm serve
+.PHONY: all build test lint wasm serve
 
-BIN_DIR  := bin
-WASM_DIR := web
+BIN_DIR   := bin
+WEB_DIR   := web
+WASM_EXEC := $(shell go env GOROOT)/lib/wasm/wasm_exec.js
+
+all: build wasm
 
 build:
 	@mkdir -p $(BIN_DIR)
-	go build -o $(BIN_DIR)/goscope ./cmd/goscope
-	go build -o $(BIN_DIR)/webdemo ./cmd/webdemo
+	go build -o $(BIN_DIR)/serve ./cmd/serve
 
 test:
 	go test ./...
@@ -15,9 +17,9 @@ lint:
 	golangci-lint run ./...
 
 wasm:
-	@mkdir -p $(WASM_DIR)
-	cp "$(shell go env GOROOT)/lib/wasm/wasm_exec.js" $(WASM_DIR)/
-	GOOS=js GOARCH=wasm go build -o $(WASM_DIR)/goscope.wasm ./cmd/goscope
+	@mkdir -p $(WEB_DIR)
+	cp "$(WASM_EXEC)" $(WEB_DIR)/wasm_exec.js
+	GOOS=js GOARCH=wasm go build -o $(WEB_DIR)/main.wasm ./cmd/webdemo
 
 serve:
-	go run ./cmd/webdemo
+	go run ./cmd/serve
