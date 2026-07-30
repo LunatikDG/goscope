@@ -4,11 +4,11 @@ package engine
 func (s Scene) Frames() []Frame {
 	state := map[int]GoroutineState{}
 	frames := make([]Frame, 0, len(s.Steps)+1)
-	frames = append(frames, snapshot(0, state)) // начальный пустой кадр
+	frames = append(frames, snapshot(0, state, nil)) // начальный кадр без причины
 
-	for i, step := range s.Steps {
-		apply(state, step)
-		frames = append(frames, snapshot(i+1, state))
+	for i := range s.Steps {
+		apply(state, s.Steps[i])
+		frames = append(frames, snapshot(i+1, state, &s.Steps[i]))
 	}
 	return frames
 }
@@ -27,10 +27,10 @@ func apply(state map[int]GoroutineState, step Step) {
 	}
 }
 
-func snapshot(index int, state map[int]GoroutineState) Frame {
+func snapshot(index int, state map[int]GoroutineState, cause *Step) Frame {
 	cp := make(map[int]GoroutineState, len(state))
 	for k, v := range state {
 		cp[k] = v
 	}
-	return Frame{Index: index, Goroutines: cp}
+	return Frame{Index: index, Goroutines: cp, Cause: cause}
 }

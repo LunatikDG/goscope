@@ -12,5 +12,6 @@ const (
 // Frame - снимок мира в один момент (это и рисует рендер).
 type Frame struct {
 	Goroutines map[int]GoroutineState
+	Cause      *Step // событие, породившее кадр; nil для начального
 	Index      int
 }

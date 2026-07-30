@@ -2,6 +2,40 @@ package engine
 
 import "testing"
 
+// (б) Финальное состояние worker pool: все горутины завершены.
+func TestWorkerPoolEndsClean(t *testing.T) {
+	frames := WorkerPool(3).Frames()
+	last := frames[len(frames)-1]
+
+	alive := 0
+	for _, st := range last.Goroutines {
+		if st == Running || st == Blocked {
+			alive++
+		}
+	}
+	if alive != 0 {
+		t.Errorf("в финальном кадре осталось живых горутин: %d, ожидалось 0", alive)
+	}
+}
+
+// (а) Finished терминально: если горутина завершилась в кадре i,
+// она остаётся Finished во всех последующих кадрах.
+func TestFinishedIsTerminal(t *testing.T) {
+	frames := WorkerPool(3).Frames()
+	finished := map[int]bool{}
+
+	for _, f := range frames {
+		for id, st := range f.Goroutines {
+			if finished[id] && st != Finished {
+				t.Errorf("кадр %d: горутина %d ожила из Finished в %v", f.Index, id, st)
+			}
+			if st == Finished {
+				finished[id] = true
+			}
+		}
+	}
+}
+
 // Переходы состояний: каждое событие приводит горутину в ожидаемое состояние.
 func TestApplyTransitions(t *testing.T) {
 	tests := []struct {
