@@ -3,13 +3,18 @@
 package main
 
 import (
-	"syscall/js"
+	"github.com/LunatikDG/goscope/internal/engine"
+	"github.com/LunatikDG/goscope/internal/render"
 )
 
 func main() {
-	ctx := js.Global().Get("document").Call("getElementById", "canvas").Call("getContext", "2d")
-	ctx.Set("fillStyle", "#22c55e")
-	ctx.Call("fillRect", 20, 20, 150, 80)
+	scene := engine.WorkerPool(3)
+	frames := scene.Frames()
+	layout := render.NewLayout(scene, 640, 360)
 
-	select {}
+	canvas := newCanvas("canvas")
+	canvas.clear()
+	canvas.draw(render.RenderFrame(frames[0], layout)) // первый статичный кадр
+
+	select {} // держим программу живой (задел под анимацию/колбэки Дня 7–8)
 }
