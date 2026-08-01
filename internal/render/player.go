@@ -65,6 +65,6 @@ func (p *Player) SetStepEvery(d time.Duration) {
 
 // Playing сообщает текущее состояние (пригодится для подписи кнопки).
 func (p *Player) Playing() bool { return p.playing }
-func (p *Player) Pause()       { p.playing = false }
-func (p *Player) Play()        { p.playing = true }
-func (p *Player) Current() int { return p.current }
+func (p *Player) Pause()        { p.playing = false }
+func (p *Player) Play()         { p.playing = true }
+func (p *Player) Current() int  { return p.current }

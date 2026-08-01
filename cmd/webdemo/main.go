@@ -3,9 +3,9 @@
 package main
 
 import (
+	"strconv"
 	"syscall/js"
 	"time"
-	"strconv"
 
 	"github.com/LunatikDG/goscope/internal/engine"
 	"github.com/LunatikDG/goscope/internal/render"
