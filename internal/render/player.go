@@ -38,6 +38,33 @@ func (p *Player) Progress() float64 {
 	return float64(p.elapsed) / float64(p.stepEvery)
 }
 
+// StepForward сдвигает на один кадр вперёд и встаёт на паузу.
+func (p *Player) StepForward() int {
+	p.playing = false
+	p.elapsed = 0
+	if p.total > 0 {
+		p.current = (p.current + 1) % p.total
+	}
+	return p.current
+}
+
+// Restart возвращает на первый кадр и продолжает играть.
+func (p *Player) Restart() int {
+	p.current = 0
+	p.elapsed = 0
+	p.playing = true
+	return p.current
+}
+
+// SetStepEvery меняет скорость (длительность одного шага).
+func (p *Player) SetStepEvery(d time.Duration) {
+	if d > 0 {
+		p.stepEvery = d
+	}
+}
+
+// Playing сообщает текущее состояние (пригодится для подписи кнопки).
+func (p *Player) Playing() bool { return p.playing }
 func (p *Player) Pause()       { p.playing = false }
 func (p *Player) Play()        { p.playing = true }
 func (p *Player) Current() int { return p.current }

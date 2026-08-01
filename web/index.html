@@ -6,6 +6,17 @@
 </head>
 <body>
     <canvas id="canvas" width="640" height="360"></canvas>
+
+    <div id="controls">
+    <button id="playPause">⏸ Pause</button>
+    <button id="step">⏭ Step</button>
+    <button id="restart">⟲ Restart</button>
+    <label>
+        Speed:
+        <input id="speed" type="range" min="1" max="10" value="5">
+    </label>
+    </div>
+
     <script src="wasm_exec.js"></script>
     <script>
         const go = new Go();

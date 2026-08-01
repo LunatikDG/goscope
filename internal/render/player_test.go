@@ -29,3 +29,21 @@ func TestPlayerPause(t *testing.T) {
 		t.Fatalf("на паузе кадр не должен меняться, стало %d", got)
 	}
 }
+
+func TestPlayerStepForwardPauses(t *testing.T) {
+	p := NewPlayer(3, 100*time.Millisecond)
+	if got := p.StepForward(); got != 1 {
+		t.Fatalf("step → кадр %d, ожидался 1", got)
+	}
+	if p.Playing() {
+		t.Fatal("step должен ставить на паузу")
+	}
+}
+
+func TestPlayerRestart(t *testing.T) {
+	p := NewPlayer(3, 100*time.Millisecond)
+	p.Advance(250 * time.Millisecond) // уехали вперёд
+	if got := p.Restart(); got != 0 || !p.Playing() {
+		t.Fatalf("restart → кадр %d playing=%v, ожидалось 0/true", got, p.Playing())
+	}
+}
