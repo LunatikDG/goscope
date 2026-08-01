@@ -19,6 +19,12 @@ func main() {
 
 	player := render.NewPlayer(len(frames), 600*time.Millisecond) // 600мс на шаг
 
+	draw := func(idx int) {
+		canvas.clear()
+		canvas.draw(render.RenderFrame(frames[idx], layout))
+	}
+	draw(player.Current()) // стартовый кадр сразу
+
 	doc := js.Global().Get("document")
 
 	// держим колбэки живыми весь сеанс
@@ -36,13 +42,11 @@ func main() {
 			}
 		}),
 		on("step", "click", func() {
-			idx := player.StepForward()
-			canvas.clear()
-			canvas.draw(render.RenderFrame(frames[idx], layout)) // сразу перерисовать на паузе
+			draw(player.StepForward())
 			playPauseBtn.Set("textContent", "▶ Play")
 		}),
 		on("restart", "click", func() {
-			player.Restart()
+			draw(player.Restart())
 			playPauseBtn.Set("textContent", "⏸ Pause")
 		}),
 	)
@@ -58,9 +62,25 @@ func main() {
 	doc.Call("getElementById", "speed").Call("addEventListener", "input", speedCb)
 	handlers = append(handlers, speedCb)
 
-	_ = handlers // просто держим ссылки живыми
+	var raf js.Func
+	lastMs := 0.0
+	raf = js.FuncOf(func(this js.Value, args []js.Value) any {
+		nowMs := args[0].Float() // rAF передаёт timestamp в миллисекундах
+		if lastMs == 0 {
+			lastMs = nowMs
+		}
+		dt := time.Duration((nowMs - lastMs) * float64(time.Millisecond))
+		lastMs = nowMs
 
-	select {} // держим программу и колбэк живыми
+		draw(player.Advance(dt))
+		js.Global().Call("requestAnimationFrame", raf)
+		return nil
+	})
+	handlers = append(handlers, raf)
+	js.Global().Call("requestAnimationFrame", raf)
+
+	_ = handlers // просто держим ссылки живыми
+	select {}    // держим программу и колбэки живыми
 }
 
 // on навешивает обработчик события на элемент по id и сохраняет js.Func живым.

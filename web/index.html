@@ -16,7 +16,20 @@
         <input id="speed" type="range" min="1" max="10" value="5">
     </label>
     </div>
-
+    <div id="legend">
+        <span class="dot" style="background:#22c55e"></span> running
+        <span class="dot" style="background:#ef4444"></span> blocked
+        <span class="dot" style="background:#9ca3af"></span> finished
+        <span class="dot" style="background:#3b82f6"></span> channel send
+    </div>
+      
+    <style>
+        #legend { margin-top: 8px; font: 13px sans-serif; }
+        #legend .dot {
+          display: inline-block; width: 12px; height: 12px;
+          border-radius: 50%; margin: 0 4px 0 12px; vertical-align: middle;
+        }
+    </style>
     <script src="wasm_exec.js"></script>
     <script>
         const go = new Go();

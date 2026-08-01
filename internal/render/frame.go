@@ -23,9 +23,10 @@ func RenderFrame(f engine.Frame, l Layout) []Op {
 	// 1) горутина → вертикальная линия, цвет по состоянию
 	for id, st := range f.Goroutines {
 		if x, ok := l.GoroutineX(id); ok {
-			ops = append(ops, Op{
-				Kind: OpLine, X1: x, Y1: top, X2: x, Y2: bottom, Color: colorFor(st),
-			})
+			ops = append(ops, Op{Kind: OpLine, X1: x, Y1: top, X2: x, Y2: bottom, Color: colorFor(st)})
+			if label := l.Label(id); label != "" {
+				ops = append(ops, Op{Kind: OpText, X1: x - 20, Y1: top - 8, Color: ColorFinished, Text: label})
+			}
 		}
 	}
 

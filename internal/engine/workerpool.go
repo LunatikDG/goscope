@@ -2,29 +2,33 @@ package engine
 
 import "fmt"
 
-// WorkerPool: 1 диспетчер раздаёт задачи N воркерам через канал.
+// WorkerPool моделирует пул: диспетчер раздаёт N задач воркерам по одной.
+// Последовательность специально «разрежена», чтобы фазы читались глазом:
+//  1. поднимается диспетчер и воркеры (воркеры сразу блокируются на канале задач)
+//  2. диспетчер по одной шлёт задачи → воркер получает (unblock) → работает → done
 func WorkerPool(workers int) Scene {
 	const dispatcher = 0
-	const jobs = 1 // id канала задач
+	const jobs = 1
 
-	steps := []Step{{Event: Spawn, Goroutine: dispatcher, Label: "dispatcher"}}
-
-	// воркеры рождаются и сразу блокируются в ожидании задачи
-	for w := 1; w <= workers; w++ {
-		steps = append(steps,
-			Step{Event: Spawn, Goroutine: w, Label: fmt.Sprintf("worker-%d", w)},
-			Step{Event: Block, Goroutine: w, Chan: jobs},
-		)
+	var steps []Step
+	add := func(e EventType, g, ch int, label string) {
+		steps = append(steps, Step{Event: e, Goroutine: g, Chan: ch, Label: label})
 	}
-	// диспетчер шлёт задачи, разблокируя воркеров по очереди
-	for w := 1; w <= workers; w++ {
-		steps = append(steps,
-			Step{Event: Send, Goroutine: dispatcher, Chan: jobs},
-			Step{Event: Unblock, Goroutine: w, Chan: jobs},
-			Step{Event: Done, Goroutine: w},
-		)
-	}
-	steps = append(steps, Step{Event: Done, Goroutine: dispatcher})
 
+	// фаза 1 — поднимаем пул
+	add(Spawn, dispatcher, 0, "dispatcher")
+	for w := 1; w <= workers; w++ {
+		add(Spawn, w, 0, fmt.Sprintf("worker-%d", w))
+		add(Block, w, jobs, "") // ждёт задачу на канале jobs
+	}
+
+	// фаза 2 — задачи прокатываются по воркерам по одной
+	for w := 1; w <= workers; w++ {
+		add(Send, dispatcher, jobs, "") // диспетчер отправил задачу
+		add(Unblock, w, jobs, "")       // воркер получил и проснулся (Running)
+		add(Done, w, 0, "")             // воркер отработал и завершился
+	}
+
+	add(Done, dispatcher, 0, "") // диспетчер закончил раздачу
 	return Scene{Name: fmt.Sprintf("Worker Pool (%d)", workers), Steps: steps}
 }
