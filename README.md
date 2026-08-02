@@ -59,7 +59,7 @@ commands — browser-agnostic and fully tested. A thin WebAssembly layer
 ## Status
 
 v0.1 — visualizes a single pattern. Roadmap: a gallery of patterns → visualizing
-traces of **real** programs (`runtime/trace`). Ideas and PRs welcome.
+traces of **real** programs (`runtime/trace`). Ideas and PRs welcome — CI runs on every pull request.
 
 ## License
 
