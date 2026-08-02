@@ -12,59 +12,34 @@ import (
 )
 
 func main() {
+	// --- данные и плеер ---
 	scene := engine.WorkerPool(3)
 	frames := scene.Frames()
-	layout := render.NewLayout(scene, 640, 360)
+	player := render.NewPlayer(len(frames), 600*time.Millisecond) // 600мс на шаг (= ползунок 5)
+
+	// canvas и layout делаем изменяемыми: resize их пересоздаёт
 	canvas := newCanvas("canvas")
-
-	player := render.NewPlayer(len(frames), 600*time.Millisecond) // 600мс на шаг
-
-	draw := func(idx int) {
-		canvas.clear()
-		canvas.draw(render.RenderFrame(frames[idx], layout))
-	}
-	draw(player.Current()) // стартовый кадр сразу
+	layout := render.NewLayout(scene, canvas.width, canvas.height)
 
 	doc := js.Global().Get("document")
 
-	// держим колбэки живыми весь сеанс
+	// единая перерисовка текущего кадра (для step, resize и цикла)
+	redraw := func() {
+		if len(frames) == 0 {
+			return
+		}
+		canvas.clear()
+		canvas.draw(render.RenderFrame(frames[player.Current()], layout))
+	}
+
+	// держим все js-колбэки живыми весь сеанс
 	var handlers []js.Func
+	keep := func(f js.Func) js.Func { handlers = append(handlers, f); return f }
 
-	playPauseBtn := doc.Call("getElementById", "playPause")
-	handlers = append(handlers,
-		on("playPause", "click", func() {
-			if player.Playing() {
-				player.Pause()
-				playPauseBtn.Set("textContent", "▶ Play")
-			} else {
-				player.Play()
-				playPauseBtn.Set("textContent", "⏸ Pause")
-			}
-		}),
-		on("step", "click", func() {
-			draw(player.StepForward())
-			playPauseBtn.Set("textContent", "▶ Play")
-		}),
-		on("restart", "click", func() {
-			draw(player.Restart())
-			playPauseBtn.Set("textContent", "⏸ Pause")
-		}),
-	)
-
-	// ползунок скорости: 1..10 → инвертируем в длительность шага
-	speedCb := js.FuncOf(func(this js.Value, args []js.Value) any {
-		v := doc.Call("getElementById", "speed").Get("value").String()
-		level, _ := strconv.Atoi(v) // 1..10
-		// 1 (медленно) → ~1000мс, 10 (быстро) → ~100мс
-		player.SetStepEvery(time.Duration(1100-level*100) * time.Millisecond)
-		return nil
-	})
-	doc.Call("getElementById", "speed").Call("addEventListener", "input", speedCb)
-	handlers = append(handlers, speedCb)
-
+	// --- rAF-цикл (автопрогон) ---
 	var raf js.Func
 	lastMs := 0.0
-	raf = js.FuncOf(func(this js.Value, args []js.Value) any {
+	tick := func(this js.Value, args []js.Value) any {
 		nowMs := args[0].Float() // rAF передаёт timestamp в миллисекундах
 		if lastMs == 0 {
 			lastMs = nowMs
@@ -72,25 +47,82 @@ func main() {
 		dt := time.Duration((nowMs - lastMs) * float64(time.Millisecond))
 		lastMs = nowMs
 
-		draw(player.Advance(dt))
-		js.Global().Call("requestAnimationFrame", raf)
+		player.Advance(dt) // на паузе вернёт тот же кадр
+		redraw()
+
+		js.Global().Call("requestAnimationFrame", raf) // ← самоподдержка цикла (без этого — стоп)
+		return nil
+	}
+	raf = keep(js.FuncOf(tick))
+
+	// --- кнопки ---
+	playPauseBtn := doc.Call("getElementById", "playPause")
+	setPlayLabel := func() {
+		if player.Playing() {
+			playPauseBtn.Set("textContent", "⏸ Pause")
+		} else {
+			playPauseBtn.Set("textContent", "▶ Play")
+		}
+	}
+
+	on := func(id, event string, fn func()) {
+		cb := js.FuncOf(func(this js.Value, args []js.Value) any {
+			fn()
+			return nil
+		})
+		doc.Call("getElementById", id).Call("addEventListener", event, keep(cb))
+	}
+
+	on("playPause", "click", func() {
+		if player.Playing() {
+			player.Pause()
+		} else {
+			player.Play()
+		}
+		setPlayLabel()
+	})
+
+	on("step", "click", func() {
+		player.StepForward() // сдвиг на кадр + пауза
+		redraw()             // на паузе rAF кадр не меняет — рисуем вручную
+		setPlayLabel()
+	})
+
+	on("restart", "click", func() {
+		player.Restart()
+		setPlayLabel()
+	})
+
+	// --- ползунок скорости: 1..10 → длительность шага (инверсия) ---
+	on("speed", "input", func() {
+		v := doc.Call("getElementById", "speed").Get("value").String()
+		level, err := strconv.Atoi(v)
+		if err != nil {
+			return
+		}
+		// 1 (медленно) → 1000мс ... 10 (быстро) → 100мс
+		player.SetStepEvery(time.Duration(1100-level*100) * time.Millisecond)
+	})
+
+	// --- адаптив под ширину окна ---
+	resizeCb := js.FuncOf(func(this js.Value, args []js.Value) any {
+		canvas = newCanvas("canvas")                                  // пересчитать dpr/размеры
+		layout = render.NewLayout(scene, canvas.width, canvas.height) // новая раскладка
+		redraw()
 		return nil
 	})
-	handlers = append(handlers, raf)
+	js.Global().Call("addEventListener", "resize", keep(resizeCb))
+
+	// --- уважить prefers-reduced-motion: старт на паузе ---
+	reduced := js.Global().Call("matchMedia", "(prefers-reduced-motion: reduce)").Get("matches").Bool()
+	if reduced {
+		player.Pause()
+	}
+	setPlayLabel()
+
+	// первый кадр + запуск цикла
+	redraw()
 	js.Global().Call("requestAnimationFrame", raf)
 
-	_ = handlers // просто держим ссылки живыми
-	select {}    // держим программу и колбэки живыми
-}
-
-// on навешивает обработчик события на элемент по id и сохраняет js.Func живым.
-func on(id, event string, fn func()) js.Func {
-	cb := js.FuncOf(func(this js.Value, args []js.Value) any {
-		fn()
-		return nil
-	})
-	js.Global().Get("document").
-		Call("getElementById", id).
-		Call("addEventListener", event, cb)
-	return cb
+	select {} // держим программу и колбэки живыми
 }

@@ -15,12 +15,29 @@ type canvasCtx struct {
 }
 
 func newCanvas(id string) canvasCtx {
-	canvas := js.Global().Get("document").Call("getElementById", id)
-	return canvasCtx{
-		ctx:    canvas.Call("getContext", "2d"),
-		width:  canvas.Get("width").Float(),
-		height: canvas.Get("height").Float(),
+	el := js.Global().Get("document").Call("getElementById", id)
+
+	dpr := js.Global().Get("devicePixelRatio").Float()
+	if dpr == 0 {
+		dpr = 1
 	}
+	// логический размер берём из CSS-раскладки (clientWidth), с фолбэком
+	cssW := el.Get("clientWidth").Float()
+	cssH := el.Get("clientHeight").Float()
+	if cssW == 0 {
+		cssW = 640
+	}
+	if cssH == 0 {
+		cssH = 360
+	}
+	// backing store — в dpr раз крупнее (важно: сброс width обнуляет трансформацию)
+	el.Set("width", int(cssW*dpr))
+	el.Set("height", int(cssH*dpr))
+
+	ctx := el.Call("getContext", "2d")
+	ctx.Call("scale", dpr, dpr) // теперь рисуем в CSS-пикселях, резко
+
+	return canvasCtx{ctx: ctx, width: cssW, height: cssH}
 }
 
 func (c canvasCtx) clear() {
