@@ -18,7 +18,8 @@
 </p>
 
 <p align="center">
-  <img src="https://github.com/LunatikDG/goscope/actions/workflows/pages.yml/badge.svg" alt="CI">
+  <img src="https://github.com/LunatikDG/goscope/actions/workflows/ci.yml/badge.svg" alt="CI">
+  <img src="https://github.com/LunatikDG/goscope/actions/workflows/pages.yml/badge.svg" alt="Pages">
   <img src="https://img.shields.io/github/license/LunatikDG/goscope" alt="License">
   <img src="https://img.shields.io/github/go-mod/go-version/LunatikDG/goscope" alt="Go version">
 </p>
