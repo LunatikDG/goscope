@@ -13,9 +13,6 @@
   <a href="https://lunatikdg.github.io/goscope/"><b>▶ Live demo</b></a>
 </p>
 
-<p align="center">
-  <img src="docs/demo.gif" alt="Demo: worker pool visualization" width="800">
-</p>
 
 <p align="center">
   <img src="https://github.com/LunatikDG/goscope/actions/workflows/ci.yml/badge.svg" alt="CI">
