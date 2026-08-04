@@ -1,0 +1,41 @@
+# Pipeline: producer -> stage2 -> stage3, значение проходит по двум каналам.
+name: "Pipeline"
+steps:
+  - event: spawn
+    goroutine: 0
+    label: producer
+
+  - event: spawn
+    goroutine: 1
+    label: stage-2
+  - event: block
+    goroutine: 1
+    chan: 1
+
+  - event: spawn
+    goroutine: 2
+    label: stage-3
+  - event: block
+    goroutine: 2
+    chan: 2
+
+  - event: send
+    goroutine: 0
+    chan: 1
+  - event: done
+    goroutine: 0
+
+  - event: unblock
+    goroutine: 1
+    chan: 1
+  - event: send
+    goroutine: 1
+    chan: 2
+  - event: done
+    goroutine: 1
+
+  - event: unblock
+    goroutine: 2
+    chan: 2
+  - event: done
+    goroutine: 2

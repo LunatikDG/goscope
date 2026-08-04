@@ -1,0 +1,90 @@
+# Fan-out: диспетчер раздаёт задачи трём воркерам по каналу jobs (1).
+# Fan-in: те же воркеры стекаются результатами к одному коллектору по каналу results (2).
+name: "Fan-in / Fan-out"
+steps:
+  - event: spawn
+    goroutine: 0
+    label: dispatcher
+  - event: spawn
+    goroutine: 1
+    label: collector
+  - event: block
+    goroutine: 1
+    chan: 2
+
+  - event: spawn
+    goroutine: 2
+    label: worker-1
+  - event: block
+    goroutine: 2
+    chan: 1
+  - event: spawn
+    goroutine: 3
+    label: worker-2
+  - event: block
+    goroutine: 3
+    chan: 1
+  - event: spawn
+    goroutine: 4
+    label: worker-3
+  - event: block
+    goroutine: 4
+    chan: 1
+
+  # fan-out: диспетчер раздаёт задачи по одной
+  - event: send
+    goroutine: 0
+    chan: 1
+  - event: unblock
+    goroutine: 2
+    chan: 1
+  - event: send
+    goroutine: 0
+    chan: 1
+  - event: unblock
+    goroutine: 3
+    chan: 1
+  - event: send
+    goroutine: 0
+    chan: 1
+  - event: unblock
+    goroutine: 4
+    chan: 1
+  - event: done
+    goroutine: 0
+
+  # fan-in: воркеры по одному стекаются результатами к коллектору
+  - event: send
+    goroutine: 2
+    chan: 2
+  - event: done
+    goroutine: 2
+  - event: unblock
+    goroutine: 1
+    chan: 2
+  - event: block
+    goroutine: 1
+    chan: 2
+
+  - event: send
+    goroutine: 3
+    chan: 2
+  - event: done
+    goroutine: 3
+  - event: unblock
+    goroutine: 1
+    chan: 2
+  - event: block
+    goroutine: 1
+    chan: 2
+
+  - event: send
+    goroutine: 4
+    chan: 2
+  - event: done
+    goroutine: 4
+  - event: unblock
+    goroutine: 1
+    chan: 2
+  - event: done
+    goroutine: 1

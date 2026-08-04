@@ -9,6 +9,16 @@
         aria-label="Визуализация конкурентности Go: горутины и каналы"></canvas>
 
     <div id="controls">
+    <label>
+        Pattern:
+        <select id="pattern">
+            <option value="workerpool">Worker Pool</option>
+            <option value="fanin_fanout">Fan-in / Fan-out</option>
+            <option value="pipeline">Pipeline</option>
+            <option value="deadlock">Deadlock</option>
+            <option value="goroutine_leak">Goroutine Leak</option>
+        </select>
+    </label>
     <button id="playPause">⏸ Pause</button>
     <button id="step">⏭ Step</button>
     <button id="restart">⟲ Restart</button>

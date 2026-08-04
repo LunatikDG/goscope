@@ -1,0 +1,17 @@
+# Deadlock: круговое ожидание. goroutine-a ждёт от goroutine-b, goroutine-b ждёт от goroutine-a —
+# ни один Send/Unblock так и не случается, обе горутины замирают в Blocked навсегда.
+name: "Deadlock (circular wait)"
+steps:
+  - event: spawn
+    goroutine: 1
+    label: goroutine-a
+  - event: spawn
+    goroutine: 2
+    label: goroutine-b
+
+  - event: block
+    goroutine: 1
+    chan: 2 # ждёт то, что мог бы отправить только goroutine-b
+  - event: block
+    goroutine: 2
+    chan: 1 # ждёт то, что мог бы отправить только goroutine-a
