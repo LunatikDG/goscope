@@ -1,0 +1,4 @@
+name: "Fixture: missing goroutine"
+steps:
+  - event: spawn
+    label: no-id

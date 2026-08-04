@@ -1,0 +1,4 @@
+name: "Fixture: unknown event"
+steps:
+  - event: teleport
+    goroutine: 1

@@ -1,0 +1,57 @@
+# Эквивалент engine.WorkerPool(3), записанный декларативно.
+name: "Worker Pool (3)"
+steps:
+  - event: spawn
+    goroutine: 0
+    label: dispatcher
+
+  - event: spawn
+    goroutine: 1
+    label: worker-1
+  - event: block
+    goroutine: 1
+    chan: 1
+
+  - event: spawn
+    goroutine: 2
+    label: worker-2
+  - event: block
+    goroutine: 2
+    chan: 1
+
+  - event: spawn
+    goroutine: 3
+    label: worker-3
+  - event: block
+    goroutine: 3
+    chan: 1
+
+  - event: send
+    goroutine: 0
+    chan: 1
+  - event: unblock
+    goroutine: 1
+    chan: 1
+  - event: done
+    goroutine: 1
+
+  - event: send
+    goroutine: 0
+    chan: 1
+  - event: unblock
+    goroutine: 2
+    chan: 1
+  - event: done
+    goroutine: 2
+
+  - event: send
+    goroutine: 0
+    chan: 1
+  - event: unblock
+    goroutine: 3
+    chan: 1
+  - event: done
+    goroutine: 3
+
+  - event: done
+    goroutine: 0
