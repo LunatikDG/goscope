@@ -1,0 +1,7 @@
+name: "Fixture: minimal"
+steps:
+  - event: spawn
+    goroutine: 5
+    label: solo
+  - event: done
+    goroutine: 5

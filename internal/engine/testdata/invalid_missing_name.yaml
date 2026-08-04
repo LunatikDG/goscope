@@ -1,0 +1,3 @@
+steps:
+  - event: spawn
+    goroutine: 1

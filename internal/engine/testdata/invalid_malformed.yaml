@@ -1,0 +1,4 @@
+name: "Fixture: malformed"
+steps:
+  - event: spawn
+   goroutine: 1

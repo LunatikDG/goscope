@@ -13,7 +13,10 @@ import (
 
 func main() {
 	// --- данные и плеер ---
-	scene := engine.WorkerPool(3)
+	scene, err := engine.LoadScene("workerpool")
+	if err != nil {
+		panic(err) // встроенная сцена невалидна — баг сборки, а не среды выполнения
+	}
 	frames := scene.Frames()
 	player := render.NewPlayer(len(frames), 600*time.Millisecond) // 600мс на шаг (= ползунок 5)
 

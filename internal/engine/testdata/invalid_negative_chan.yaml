@@ -1,0 +1,5 @@
+name: "Fixture: negative chan"
+steps:
+  - event: block
+    goroutine: 1
+    chan: -1
