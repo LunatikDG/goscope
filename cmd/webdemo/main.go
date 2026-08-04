@@ -13,18 +13,22 @@ import (
 
 func main() {
 	// --- данные и плеер ---
-	scene, err := engine.LoadScene("workerpool")
-	if err != nil {
-		panic(err) // встроенная сцена невалидна — баг сборки, а не среды выполнения
-	}
-	frames := scene.Frames()
-	player := render.NewPlayer(len(frames), 600*time.Millisecond) // 600мс на шаг (= ползунок 5)
+	stepEvery := 600 * time.Millisecond // 600мс на шаг (= ползунок 5); меняется ползунком, переживает смену паттерна
 
-	// canvas и layout делаем изменяемыми: resize их пересоздаёт
+	var (
+		scene  engine.Scene
+		frames []engine.Frame
+		layout render.Layout
+		player *render.Player
+	)
+
+	// canvas делаем изменяемым: resize его пересоздаёт
 	canvas := newCanvas("canvas")
-	layout := render.NewLayout(scene, canvas.width, canvas.height)
 
 	doc := js.Global().Get("document")
+
+	// уважить prefers-reduced-motion: каждый вновь загруженный паттерн стартует на паузе
+	reduced := js.Global().Call("matchMedia", "(prefers-reduced-motion: reduce)").Get("matches").Bool()
 
 	// единая перерисовка текущего кадра (для step, resize и цикла)
 	redraw := func() {
@@ -34,6 +38,25 @@ func main() {
 		canvas.clear()
 		canvas.draw(render.RenderFrame(frames[player.Current()], layout))
 	}
+
+	// loadPattern грузит встроенную сцену по имени и полностью пересобирает плеер/раскладку под неё.
+	loadPattern := func(name string) {
+		s, err := engine.LoadScene(name)
+		if err != nil {
+			js.Global().Get("console").Call("error", "goscope: не удалось загрузить сцену "+name+": "+err.Error())
+			return
+		}
+		scene = s
+		frames = scene.Frames()
+		layout = render.NewLayout(scene, canvas.width, canvas.height)
+		player = render.NewPlayer(len(frames), stepEvery)
+		if reduced {
+			player.Pause()
+		}
+		redraw()
+	}
+
+	loadPattern("workerpool")
 
 	// держим все js-колбэки живыми весь сеанс
 	var handlers []js.Func
@@ -104,7 +127,15 @@ func main() {
 			return
 		}
 		// 1 (медленно) → 1000мс ... 10 (быстро) → 100мс
-		player.SetStepEvery(time.Duration(1100-level*100) * time.Millisecond)
+		stepEvery = time.Duration(1100-level*100) * time.Millisecond
+		player.SetStepEvery(stepEvery)
+	})
+
+	// --- выбор паттерна: полная перезагрузка сцены/плеера/раскладки ---
+	on("pattern", "change", func() {
+		v := doc.Call("getElementById", "pattern").Get("value").String()
+		loadPattern(v)
+		setPlayLabel()
 	})
 
 	// --- адаптив под ширину окна ---
@@ -116,11 +147,6 @@ func main() {
 	})
 	js.Global().Call("addEventListener", "resize", keep(resizeCb))
 
-	// --- уважить prefers-reduced-motion: старт на паузе ---
-	reduced := js.Global().Call("matchMedia", "(prefers-reduced-motion: reduce)").Get("matches").Bool()
-	if reduced {
-		player.Pause()
-	}
 	setPlayLabel()
 
 	// первый кадр + запуск цикла

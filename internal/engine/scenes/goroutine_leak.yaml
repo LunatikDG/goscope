@@ -1,0 +1,46 @@
+# Goroutine leak: оркестратор один за другим плодит горутины, которые блокируются
+# на канале, в который никто и никогда не отправит. Оркестратор считает свою работу
+# выполненной и завершается, а «протёкшие» горутины копятся, зависшие, до конца сцены.
+name: "Goroutine leak"
+steps:
+  - event: spawn
+    goroutine: 0
+    label: orchestrator
+
+  - event: spawn
+    goroutine: 1
+    label: leaked-1
+  - event: block
+    goroutine: 1
+    chan: 1
+
+  - event: spawn
+    goroutine: 2
+    label: leaked-2
+  - event: block
+    goroutine: 2
+    chan: 1
+
+  - event: spawn
+    goroutine: 3
+    label: leaked-3
+  - event: block
+    goroutine: 3
+    chan: 1
+
+  - event: spawn
+    goroutine: 4
+    label: leaked-4
+  - event: block
+    goroutine: 4
+    chan: 1
+
+  - event: spawn
+    goroutine: 5
+    label: leaked-5
+  - event: block
+    goroutine: 5
+    chan: 1
+
+  - event: done
+    goroutine: 0
