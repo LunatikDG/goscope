@@ -1,6 +1,7 @@
 # Fan-out: диспетчер раздаёт задачи трём воркерам по каналу jobs (1).
 # Fan-in: те же воркеры стекаются результатами к одному коллектору по каналу results (2).
 name: "Fan-in / Fan-out"
+description: "One dispatcher fans work out to several workers; a collector fans their results back in."
 steps:
   - event: spawn
     goroutine: 0

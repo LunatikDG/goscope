@@ -8,8 +8,9 @@ type Step struct {
 	Chan      int // id канала (для Send/Block по каналу); 0 если неприменимо
 }
 
-// Scene — сценарий: имя + упорядоченные шаги.
+// Scene — сценарий: имя, короткое описание для UI и упорядоченные шаги.
 type Scene struct {
-	Name  string
-	Steps []Step
+	Name        string
+	Description string
+	Steps       []Step
 }

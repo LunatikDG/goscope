@@ -9,8 +9,9 @@ import (
 
 // yamlScene — схема YAML-файла сцены.
 type yamlScene struct {
-	Name  string     `yaml:"name"`
-	Steps []yamlStep `yaml:"steps"`
+	Name        string     `yaml:"name"`
+	Description string     `yaml:"description"`
+	Steps       []yamlStep `yaml:"steps"`
 }
 
 // yamlStep — схема одного шага; Goroutine — указатель, чтобы отличить
@@ -63,5 +64,5 @@ func validateScene(raw yamlScene) (Scene, error) {
 		}
 	}
 
-	return Scene{Name: raw.Name, Steps: steps}, nil
+	return Scene{Name: raw.Name, Description: raw.Description, Steps: steps}, nil
 }

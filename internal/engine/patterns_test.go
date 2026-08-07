@@ -14,6 +14,9 @@ func TestPatternLibraryLoads(t *testing.T) {
 			if len(scene.Steps) == 0 {
 				t.Fatalf("сцена %q загрузилась без шагов", name)
 			}
+			if scene.Description == "" {
+				t.Errorf("сцена %q: пустое описание — нечего показать в UI", name)
+			}
 		})
 	}
 }

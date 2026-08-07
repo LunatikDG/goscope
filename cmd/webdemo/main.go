@@ -4,12 +4,16 @@ package main
 
 import (
 	"strconv"
+	"strings"
 	"syscall/js"
 	"time"
 
 	"github.com/LunatikDG/goscope/internal/engine"
 	"github.com/LunatikDG/goscope/internal/render"
 )
+
+// order — паттерны в порядке показа в навигации: от простого к «сломанному».
+var order = []string{"workerpool", "fanin_fanout", "pipeline", "deadlock", "goroutine_leak"}
 
 func main() {
 	// --- данные и плеер ---
@@ -39,7 +43,36 @@ func main() {
 		canvas.draw(render.RenderFrame(frames[player.Current()], layout))
 	}
 
-	// loadPattern грузит встроенную сцену по имени и полностью пересобирает плеер/раскладку под неё.
+	playPauseBtn := doc.Call("getElementById", "playPause")
+	setPlayLabel := func() {
+		if player.Playing() {
+			playPauseBtn.Set("textContent", "⏸ Pause")
+		} else {
+			playPauseBtn.Set("textContent", "▶ Play")
+		}
+	}
+
+	titleEl := doc.Call("getElementById", "patternTitle")
+	descEl := doc.Call("getElementById", "patternDescription")
+	navEl := doc.Call("getElementById", "patterns")
+
+	// setActiveNav подсвечивает ссылку текущего паттерна в навигации.
+	setActiveNav := func(name string) {
+		links := navEl.Get("children")
+		for i := 0; i < links.Length(); i++ {
+			a := links.Index(i)
+			classList := a.Get("classList")
+			if a.Get("dataset").Get("pattern").String() == name {
+				classList.Call("add", "active")
+				a.Call("setAttribute", "aria-current", "page")
+			} else {
+				classList.Call("remove", "active")
+				a.Call("removeAttribute", "aria-current")
+			}
+		}
+	}
+
+	// loadPattern грузит встроенную сцену по имени и полностью пересобирает плеер/раскладку/UI под неё.
 	loadPattern := func(name string) {
 		s, err := engine.LoadScene(name)
 		if err != nil {
@@ -53,10 +86,52 @@ func main() {
 		if reduced {
 			player.Pause()
 		}
+		titleEl.Set("textContent", scene.Name)
+		descEl.Set("textContent", scene.Description)
+		setActiveNav(name)
+		setPlayLabel()
 		redraw()
 	}
 
-	loadPattern("workerpool")
+	// строим навигацию один раз: имя + описание берём прямо из встроенных сцен —
+	// единственный источник истины, дублировать их в HTML не нужно.
+	for _, name := range order {
+		s, err := engine.LoadScene(name)
+		if err != nil {
+			continue
+		}
+
+		a := doc.Call("createElement", "a")
+		a.Set("href", "#"+name)
+		a.Set("className", "pattern-link")
+		a.Get("dataset").Set("pattern", name)
+
+		title := doc.Call("createElement", "strong")
+		title.Set("textContent", s.Name)
+		a.Call("appendChild", title)
+
+		desc := doc.Call("createElement", "span")
+		desc.Set("textContent", s.Description)
+		a.Call("appendChild", desc)
+
+		navEl.Call("appendChild", a)
+	}
+
+	validNames := make(map[string]bool, len(order))
+	for _, name := range order {
+		validNames[name] = true
+	}
+
+	// patternFromHash читает #имя-паттерна из адресной строки — это и есть пермалинк.
+	patternFromHash := func() string {
+		h := strings.TrimPrefix(js.Global().Get("location").Get("hash").String(), "#")
+		if !validNames[h] {
+			return order[0]
+		}
+		return h
+	}
+
+	loadPattern(patternFromHash())
 
 	// держим все js-колбэки живыми весь сеанс
 	var handlers []js.Func
@@ -80,16 +155,6 @@ func main() {
 		return nil
 	}
 	raf = keep(js.FuncOf(tick))
-
-	// --- кнопки ---
-	playPauseBtn := doc.Call("getElementById", "playPause")
-	setPlayLabel := func() {
-		if player.Playing() {
-			playPauseBtn.Set("textContent", "⏸ Pause")
-		} else {
-			playPauseBtn.Set("textContent", "▶ Play")
-		}
-	}
 
 	on := func(id, event string, fn func()) {
 		cb := js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -131,12 +196,12 @@ func main() {
 		player.SetStepEvery(stepEvery)
 	})
 
-	// --- выбор паттерна: полная перезагрузка сцены/плеера/раскладки ---
-	on("pattern", "change", func() {
-		v := doc.Call("getElementById", "pattern").Get("value").String()
-		loadPattern(v)
-		setPlayLabel()
+	// --- переход по пермалинку: клик по навигации меняет location.hash и рождает hashchange ---
+	hashCb := js.FuncOf(func(this js.Value, args []js.Value) any {
+		loadPattern(patternFromHash())
+		return nil
 	})
+	js.Global().Call("addEventListener", "hashchange", keep(hashCb))
 
 	// --- адаптив под ширину окна ---
 	resizeCb := js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -146,8 +211,6 @@ func main() {
 		return nil
 	})
 	js.Global().Call("addEventListener", "resize", keep(resizeCb))
-
-	setPlayLabel()
 
 	// первый кадр + запуск цикла
 	redraw()

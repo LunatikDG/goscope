@@ -1,6 +1,7 @@
 # Deadlock: круговое ожидание. goroutine-a ждёт от goroutine-b, goroutine-b ждёт от goroutine-a —
 # ни один Send/Unblock так и не случается, обе горутины замирают в Blocked навсегда.
 name: "Deadlock (circular wait)"
+description: "Two goroutines wait on each other in a circle — neither can ever proceed."
 steps:
   - event: spawn
     goroutine: 1
