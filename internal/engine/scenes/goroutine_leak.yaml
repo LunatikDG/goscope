@@ -2,6 +2,7 @@
 # на канале, в который никто и никогда не отправит. Оркестратор считает свою работу
 # выполненной и завершается, а «протёкшие» горутины копятся, зависшие, до конца сцены.
 name: "Goroutine leak"
+description: "An orchestrator spawns goroutines that block forever and are never cleaned up — the leak keeps growing."
 steps:
   - event: spawn
     goroutine: 0

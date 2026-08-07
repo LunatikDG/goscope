@@ -1,5 +1,6 @@
 # Эквивалент engine.WorkerPool(3), записанный декларативно.
 name: "Worker Pool (3)"
+description: "A dispatcher hands work to a fixed pool of workers, one task at a time."
 steps:
   - event: spawn
     goroutine: 0

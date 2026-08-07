@@ -2,50 +2,200 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>goscope</title>
-</head>
-<body>
-    <canvas id="canvas" style="width:100%; max-width:900px; height:360px;"
-        aria-label="Визуализация конкурентности Go: горутины и каналы"></canvas>
 
-    <div id="controls">
-    <label>
-        Pattern:
-        <select id="pattern">
-            <option value="workerpool">Worker Pool</option>
-            <option value="fanin_fanout">Fan-in / Fan-out</option>
-            <option value="pipeline">Pipeline</option>
-            <option value="deadlock">Deadlock</option>
-            <option value="goroutine_leak">Goroutine Leak</option>
-        </select>
-    </label>
-    <button id="playPause">⏸ Pause</button>
-    <button id="step">⏭ Step</button>
-    <button id="restart">⟲ Restart</button>
-    <label>
-        Speed:
-        <input id="speed" type="range" min="1" max="10" value="5">
-    </label>
-    </div>
-    <div id="legend">
-        <span class="dot" style="background:#22c55e"></span> running
-        <span class="dot" style="background:#ef4444"></span> blocked
-        <span class="dot" style="background:#9ca3af"></span> finished
-        <span class="dot" style="background:#3b82f6"></span> channel send
-    </div>
-      
+    <script>
+        // применяем сохранённую тему до отрисовки, чтобы не было мигания
+        (function () {
+            try {
+                var saved = localStorage.getItem("goscope-theme");
+                if (saved === "light" || saved === "dark") {
+                    document.documentElement.setAttribute("data-theme", saved);
+                }
+            } catch (e) { /* localStorage недоступен — останемся на системной теме */ }
+        })();
+    </script>
+
     <style>
-        #legend { margin-top: 8px; font: 13px sans-serif; }
+        :root {
+            --bg: #ffffff;
+            --bg-elevated: #f4f4f5;
+            --fg: #111111;
+            --fg-muted: #6b7280;
+            --border: #e5e7eb;
+            --accent: #3b82f6;
+            --running: #22c55e;
+            --blocked: #ef4444;
+            --finished: #9ca3af;
+            --channel: #3b82f6;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #101012;
+                --bg-elevated: #1b1b1f;
+                --fg: #f4f4f5;
+                --fg-muted: #9ca3af;
+                --border: #2e2e33;
+                --accent: #60a5fa;
+            }
+        }
+        :root[data-theme="light"] {
+            --bg: #ffffff; --bg-elevated: #f4f4f5; --fg: #111111;
+            --fg-muted: #6b7280; --border: #e5e7eb; --accent: #3b82f6;
+        }
+        :root[data-theme="dark"] {
+            --bg: #101012; --bg-elevated: #1b1b1f; --fg: #f4f4f5;
+            --fg-muted: #9ca3af; --border: #2e2e33; --accent: #60a5fa;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+        }
+        a { color: inherit; }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+        }
+        header h1 { font-size: 18px; margin: 0; }
+
+        #themeToggle {
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            color: var(--fg);
+            border-radius: 6px;
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #themeToggle:hover { border-color: var(--accent); }
+
+        main {
+            display: flex;
+            gap: 24px;
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 24px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        nav#patterns {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            min-width: 220px;
+            flex: 0 0 220px;
+        }
+        nav#patterns a {
+            display: block;
+            padding: 10px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            border: 1px solid transparent;
+        }
+        nav#patterns a strong { display: block; font-size: 14px; font-weight: 600; }
+        nav#patterns a span { display: block; font-size: 12px; color: var(--fg-muted); margin-top: 2px; }
+        nav#patterns a:hover { background: var(--bg-elevated); }
+        nav#patterns a.active { border-color: var(--accent); background: var(--bg-elevated); }
+
+        #stage { flex: 1 1 480px; min-width: 0; }
+        #stage h2 { margin: 0 0 4px; font-size: 18px; }
+        #stage p#patternDescription { margin: 0 0 16px; color: var(--fg-muted); }
+
+        canvas#canvas {
+            display: block;
+            width: 100%;
+            max-width: 900px;
+            height: 360px;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+
+        #controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+        #controls button {
+            border: 1px solid var(--border);
+            background: var(--bg-elevated);
+            color: var(--fg);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #controls button:hover { border-color: var(--accent); }
+        #controls label { display: flex; align-items: center; gap: 6px; font-size: 14px; color: var(--fg-muted); }
+
+        #legend { margin-top: 12px; font-size: 13px; color: var(--fg-muted); }
         #legend .dot {
-          display: inline-block; width: 12px; height: 12px;
-          border-radius: 50%; margin: 0 4px 0 12px; vertical-align: middle;
+            display: inline-block; width: 12px; height: 12px;
+            border-radius: 50%; margin: 0 4px 0 12px; vertical-align: middle;
+        }
+
+        @media (max-width: 700px) {
+            main { flex-direction: column; }
+            nav#patterns { flex-direction: row; flex-wrap: wrap; min-width: 0; width: 100%; }
+            nav#patterns a { flex: 1 1 45%; }
         }
     </style>
+</head>
+<body>
+    <header>
+        <h1>goscope</h1>
+        <button id="themeToggle" aria-label="Toggle color theme">🌓 Theme</button>
+    </header>
+
+    <main>
+        <nav id="patterns" aria-label="Concurrency patterns"></nav>
+
+        <section id="stage">
+            <h2 id="patternTitle">Loading…</h2>
+            <p id="patternDescription"></p>
+
+            <canvas id="canvas"
+                aria-label="Визуализация конкурентности Go: горутины и каналы"></canvas>
+
+            <div id="controls">
+                <button id="playPause">⏸ Pause</button>
+                <button id="step">⏭ Step</button>
+                <button id="restart">⟲ Restart</button>
+                <label>
+                    Speed:
+                    <input id="speed" type="range" min="1" max="10" value="5">
+                </label>
+            </div>
+
+            <div id="legend">
+                <span class="dot" style="background:var(--running)"></span> running
+                <span class="dot" style="background:var(--blocked)"></span> blocked
+                <span class="dot" style="background:var(--finished)"></span> finished
+                <span class="dot" style="background:var(--channel)"></span> channel send
+            </div>
+        </section>
+    </main>
+
     <script src="wasm_exec.js"></script>
     <script>
         const go = new Go();
         WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then(res => {
             go.run(res.instance);
+        });
+
+        document.getElementById("themeToggle").addEventListener("click", function () {
+            var root = document.documentElement;
+            var current = root.getAttribute("data-theme") ||
+                (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+            var next = current === "dark" ? "light" : "dark";
+            root.setAttribute("data-theme", next);
+            try { localStorage.setItem("goscope-theme", next); } catch (e) { /* ignore */ }
         });
     </script>
 </body>
