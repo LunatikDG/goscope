@@ -7,9 +7,13 @@ import (
 )
 
 func main() {
+	mux := http.NewServeMux()
+	mux.Handle("/", http.FileServer(http.Dir("web")))
+	mux.HandleFunc("GET /api/run/{name}", handleRun)
+
 	srv := &http.Server{
 		Addr:              ":8080",
-		Handler:           http.FileServer(http.Dir("web")),
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 	if err := srv.ListenAndServe(); err != nil {

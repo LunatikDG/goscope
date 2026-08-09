@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 	"syscall/js"
@@ -15,16 +16,36 @@ import (
 // order — паттерны в порядке показа в навигации: от простого к «сломанному».
 var order = []string{"workerpool", "fanin_fanout", "pipeline", "deadlock", "goroutine_leak"}
 
+// liveEvent — схема одной SSE-строки, которую шлёт /api/run/{name};
+// повторяет internal/instrument.Event.
+type liveEvent struct {
+	Event     string `json:"event"`
+	Label     string `json:"label"`
+	Goroutine int    `json:"goroutine"`
+	Chan      int    `json:"chan"`
+}
+
 func main() {
-	// --- данные и плеер ---
+	// --- данные и плеер (статичные, заранее просчитанные сцены) ---
 	stepEvery := 600 * time.Millisecond // 600мс на шаг (= ползунок 5); меняется ползунком, переживает смену паттерна
 
 	var (
-		scene  engine.Scene
-		frames []engine.Frame
-		layout render.Layout
-		player *render.Player
+		scene       engine.Scene
+		frames      []engine.Frame
+		layout      render.Layout
+		player      *render.Player
+		currentName string
 	)
+
+	// --- состояние живого режима (стрим реального примера с сервера по SSE) ---
+	var (
+		live       bool
+		liveFrame  engine.Frame
+		liveSteps  []engine.Step
+		liveFolder *engine.LiveFolder
+		liveFuncs  []js.Func // колбэки текущего живого стрима — освобождаем при остановке
+	)
+	liveES := js.Undefined() // явно, а не нулевое значение js.Value — им проверяем, есть ли активное соединение
 
 	// canvas делаем изменяемым: resize его пересоздаёт
 	canvas := newCanvas("canvas")
@@ -34,8 +55,13 @@ func main() {
 	// уважить prefers-reduced-motion: каждый вновь загруженный паттерн стартует на паузе
 	reduced := js.Global().Call("matchMedia", "(prefers-reduced-motion: reduce)").Get("matches").Bool()
 
-	// единая перерисовка текущего кадра (для step, resize и цикла)
+	// единая перерисовка текущего кадра (для step, resize, цикла и живого стрима)
 	redraw := func() {
+		if live {
+			canvas.clear()
+			canvas.draw(render.RenderFrame(liveFrame, layout))
+			return
+		}
 		if len(frames) == 0 {
 			return
 		}
@@ -55,6 +81,8 @@ func main() {
 	titleEl := doc.Call("getElementById", "patternTitle")
 	descEl := doc.Call("getElementById", "patternDescription")
 	navEl := doc.Call("getElementById", "patterns")
+	liveStatusEl := doc.Call("getElementById", "liveStatus")
+	watchLiveBtn := doc.Call("getElementById", "watchLive")
 
 	// setActiveNav подсвечивает ссылку текущего паттерна в навигации.
 	setActiveNav := func(name string) {
@@ -72,6 +100,22 @@ func main() {
 		}
 	}
 
+	// closeLiveConnection закрывает текущий SSE-стрим (если есть) и освобождает его
+	// колбэки. Не трогает live: конец стрима не значит выход из живого режима —
+	// последний полученный кадр должен остаться на экране, а не смениться кадром
+	// фонового статичного плеера (тот всё это время тихо тикает по rAF).
+	closeLiveConnection := func() {
+		if liveES.IsUndefined() {
+			return
+		}
+		liveES.Call("close")
+		liveES = js.Undefined()
+		for _, f := range liveFuncs {
+			f.Release()
+		}
+		liveFuncs = nil
+	}
+
 	// loadPattern грузит встроенную сцену по имени и полностью пересобирает плеер/раскладку/UI под неё.
 	loadPattern := func(name string) {
 		s, err := engine.LoadScene(name)
@@ -79,6 +123,13 @@ func main() {
 			js.Global().Get("console").Call("error", "goscope: не удалось загрузить сцену "+name+": "+err.Error())
 			return
 		}
+		closeLiveConnection()
+		live = false
+		liveStatusEl.Set("textContent", "")
+
+		currentName = name
+		watchLiveBtn.Set("textContent", "▶ Watch live: "+s.Name)
+
 		scene = s
 		frames = scene.Frames()
 		layout = render.NewLayout(scene, canvas.width, canvas.height)
@@ -148,7 +199,7 @@ func main() {
 		dt := time.Duration((nowMs - lastMs) * float64(time.Millisecond))
 		lastMs = nowMs
 
-		player.Advance(dt) // на паузе вернёт тот же кадр
+		player.Advance(dt) // на паузе (или в живом режиме) вернёт тот же кадр
 		redraw()
 
 		js.Global().Call("requestAnimationFrame", raf) // ← самоподдержка цикла (без этого — стоп)
@@ -196,6 +247,63 @@ func main() {
 		player.SetStepEvery(stepEvery)
 	})
 
+	// --- «Watch live»: запускает настоящий пример на сервере и стримит его события по SSE ---
+	on("watchLive", "click", func() {
+		closeLiveConnection()
+
+		live = true
+		liveSteps = nil
+		liveFolder = engine.NewLiveFolder()
+		liveFrame = engine.Frame{Goroutines: map[int]engine.GoroutineState{}}
+		layout = render.NewLayout(engine.Scene{}, canvas.width, canvas.height)
+		liveStatusEl.Set("textContent", "● connecting…")
+		redraw()
+
+		ended := false
+		addLive := func(f js.Func) js.Func { liveFuncs = append(liveFuncs, f); return f }
+
+		es := js.Global().Get("EventSource").New("/api/run/" + currentName)
+		liveES = es
+
+		es.Set("onopen", addLive(js.FuncOf(func(this js.Value, args []js.Value) any {
+			liveStatusEl.Set("textContent", "● live")
+			return nil
+		})))
+
+		es.Set("onmessage", addLive(js.FuncOf(func(this js.Value, args []js.Value) any {
+			var le liveEvent
+			if err := json.Unmarshal([]byte(args[0].Get("data").String()), &le); err != nil {
+				return nil
+			}
+			event, err := engine.ParseEventType(le.Event)
+			if err != nil {
+				return nil
+			}
+			step := engine.Step{Event: event, Goroutine: le.Goroutine, Chan: le.Chan, Label: le.Label}
+
+			liveSteps = append(liveSteps, step)
+			layout = render.NewLayout(engine.Scene{Steps: liveSteps}, canvas.width, canvas.height)
+			liveFrame = liveFolder.Apply(step)
+			redraw()
+			return nil
+		})))
+
+		es.Call("addEventListener", "end", addLive(js.FuncOf(func(this js.Value, args []js.Value) any {
+			ended = true
+			liveStatusEl.Set("textContent", "● finished")
+			closeLiveConnection()
+			return nil
+		})))
+
+		es.Set("onerror", addLive(js.FuncOf(func(this js.Value, args []js.Value) any {
+			if !ended {
+				liveStatusEl.Set("textContent", "⚠ live examples need the local dev server (make serve)")
+			}
+			closeLiveConnection()
+			return nil
+		})))
+	})
+
 	// --- переход по пермалинку: клик по навигации меняет location.hash и рождает hashchange ---
 	hashCb := js.FuncOf(func(this js.Value, args []js.Value) any {
 		loadPattern(patternFromHash())
@@ -205,8 +313,12 @@ func main() {
 
 	// --- адаптив под ширину окна ---
 	resizeCb := js.FuncOf(func(this js.Value, args []js.Value) any {
-		canvas = newCanvas("canvas")                                  // пересчитать dpr/размеры
-		layout = render.NewLayout(scene, canvas.width, canvas.height) // новая раскладка
+		canvas = newCanvas("canvas") // пересчитать dpr/размеры
+		if live {
+			layout = render.NewLayout(engine.Scene{Steps: liveSteps}, canvas.width, canvas.height)
+		} else {
+			layout = render.NewLayout(scene, canvas.width, canvas.height)
+		}
 		redraw()
 		return nil
 	})
