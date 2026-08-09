@@ -1,6 +1,9 @@
 package engine
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 // (б) Финальное состояние worker pool: все горутины завершены.
 func TestWorkerPoolEndsClean(t *testing.T) {
@@ -110,5 +113,28 @@ func TestFramesAreIndependentSnapshots(t *testing.T) {
 	}
 	if frames[1].Goroutines[1] == frames[2].Goroutines[1] {
 		t.Fatal("кадры 1 и 2 ссылаются на одно состояние — нарушена независимость снимков")
+	}
+}
+
+// LiveFolder, применяя шаги по одному, должен давать те же кадры, что и
+// Scene.Frames() при том же наборе шагов сразу.
+func TestLiveFolderMatchesFrames(t *testing.T) {
+	steps := WorkerPool(3).Steps
+	want := (Scene{Steps: steps}).Frames()
+
+	folder := NewLiveFolder()
+	got := make([]Frame, 0, len(steps)+1)
+	got = append(got, Frame{Index: 0, Goroutines: map[int]GoroutineState{}})
+	for _, step := range steps {
+		got = append(got, folder.Apply(step))
+	}
+
+	if len(got) != len(want) {
+		t.Fatalf("кадров = %d, ожидалось %d", len(got), len(want))
+	}
+	for i := range want {
+		if !reflect.DeepEqual(got[i].Goroutines, want[i].Goroutines) {
+			t.Fatalf("кадр %d: live = %+v, batch = %+v", i, got[i].Goroutines, want[i].Goroutines)
+		}
 	}
 }

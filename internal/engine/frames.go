@@ -34,3 +34,22 @@ func snapshot(index int, state map[int]GoroutineState, cause *Step) Frame {
 	}
 	return Frame{Index: index, Goroutines: cp, Cause: cause}
 }
+
+// LiveFolder разворачивает шаги в кадры по одному, для сцен, чья полная
+// последовательность заранее не известна (например, стримятся с сервера).
+type LiveFolder struct {
+	state map[int]GoroutineState
+	index int
+}
+
+// NewLiveFolder создаёт пустой фолдер, готовый принимать шаги по мере поступления.
+func NewLiveFolder() *LiveFolder {
+	return &LiveFolder{state: map[int]GoroutineState{}}
+}
+
+// Apply применяет очередной шаг и возвращает снимок мира после него.
+func (f *LiveFolder) Apply(step Step) Frame {
+	apply(f.state, step)
+	f.index++
+	return snapshot(f.index, f.state, &step)
+}
