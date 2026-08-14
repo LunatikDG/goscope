@@ -9,7 +9,7 @@ import (
 func TestRenderFrameHasLabels(t *testing.T) {
 	scene := engine.WorkerPool(2)
 	l := NewLayout(scene, 640, 360)
-	f := scene.Frames()[1] // после спавна диспетчера
+	f := scene.Frames()[1] // after the dispatcher spawns
 
 	hasText := false
 	for _, op := range RenderFrame(f, l) {

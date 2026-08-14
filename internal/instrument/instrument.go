@@ -1,7 +1,7 @@
-// Package instrument даёт инструментированным примерам в examples/ единый способ
-// сообщить о происходящем: одна строка NDJSON на stdout на каждое событие.
-// Сервер (cmd/serve) запускает пример как подпроцесс, построчно читает stdout
-// и стримит эти же строки в браузер по SSE.
+// Package instrument gives the instrumented examples in examples/ a single way
+// to report what's happening: one NDJSON line on stdout per event. The server
+// (cmd/serve) runs an example as a subprocess, reads stdout line by line, and
+// streams those same lines to the browser over SSE.
 package instrument
 
 import (
@@ -11,7 +11,7 @@ import (
 	"sync"
 )
 
-// Event — одна строка на stdout; схема совпадает с engine.Step по смыслу полей.
+// Event — one line on stdout; its fields mirror engine.Step in meaning.
 type Event struct {
 	Event     string `json:"event"`
 	Label     string `json:"label,omitempty"`
@@ -19,14 +19,14 @@ type Event struct {
 	Chan      int    `json:"chan,omitempty"`
 }
 
-// mu защищает stdout: несколько горутин примера пишут события одновременно,
-// без мьютекса строки могли бы перемежаться и ломать построчный NDJSON.
+// mu protects stdout: several of the example's goroutines write events at the
+// same time; without a mutex the lines could interleave and break line-oriented NDJSON.
 var mu sync.Mutex
 
 func emit(e Event) {
 	data, err := json.Marshal(e)
 	if err != nil {
-		return // Event сериализуется всегда; сюда не попадём
+		return // Event always marshals cleanly; we never actually get here
 	}
 
 	mu.Lock()
@@ -34,27 +34,27 @@ func emit(e Event) {
 	fmt.Fprintln(os.Stdout, string(data))
 }
 
-// Spawn сообщает о рождении горутины goroutine с подписью label (может быть пустой).
+// Spawn reports that goroutine was born, with label (may be empty).
 func Spawn(goroutine int, label string) {
 	emit(Event{Event: "spawn", Goroutine: goroutine, Label: label})
 }
 
-// Block сообщает, что горутина заблокировалась на канале ch.
+// Block reports that goroutine blocked on channel ch.
 func Block(goroutine, ch int) {
 	emit(Event{Event: "block", Goroutine: goroutine, Chan: ch})
 }
 
-// Unblock сообщает, что горутина разблокировалась (получила значение из ch).
+// Unblock reports that goroutine unblocked (received a value from ch).
 func Unblock(goroutine, ch int) {
 	emit(Event{Event: "unblock", Goroutine: goroutine, Chan: ch})
 }
 
-// Send сообщает об отправке значения в канал ch.
+// Send reports sending a value into channel ch.
 func Send(goroutine, ch int) {
 	emit(Event{Event: "send", Goroutine: goroutine, Chan: ch})
 }
 
-// Done сообщает о завершении горутины.
+// Done reports that the goroutine finished.
 func Done(goroutine int) {
 	emit(Event{Event: "done", Goroutine: goroutine})
 }

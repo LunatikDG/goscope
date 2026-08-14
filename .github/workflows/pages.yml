@@ -11,7 +11,7 @@ permissions:
   pages: write
   id-token: write
 
-# не отменять уже идущий деплой, но не копить очередь
+# don't cancel a deploy already in progress, but don't queue up either
 concurrency:
   group: pages
   cancel-in-progress: false
@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          # для workflow_run берём тот же commit, что прошёл CI
+          # for workflow_run, use the same commit that passed CI
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Go

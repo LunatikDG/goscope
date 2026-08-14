@@ -1,6 +1,6 @@
-// Command faninfanout — fan-out: диспетчер раздаёт задачи воркерам через общий
-// канал; fan-in: воркеры шлют результаты одному коллектору. Настоящая
-// конкурентность: порядок событий на таймлайне решает планировщик Go.
+// Command faninfanout — fan-out: the dispatcher hands out tasks to workers over
+// a shared channel; fan-in: the workers send results to a single collector.
+// Real concurrency: the order of events on the timeline is decided by the Go scheduler.
 package main
 
 import (
@@ -37,7 +37,7 @@ func main() {
 		close(results)
 	}()
 
-	time.Sleep(80 * time.Millisecond) // дать воркерам заблокироваться на jobs до первой отправки
+	time.Sleep(80 * time.Millisecond) // give the workers time to block on jobs before the first send
 	for j := 1; j <= workerCount; j++ {
 		jobs <- j
 	}
@@ -49,7 +49,7 @@ func main() {
 		collected++
 		instrument.Unblock(1, resultsChan)
 		if collected < workerCount {
-			instrument.Block(1, resultsChan) // ждёт следующий результат
+			instrument.Block(1, resultsChan) // waiting for the next result
 		}
 	}
 	instrument.Done(1)
@@ -66,7 +66,7 @@ func worker(id int, jobs <-chan int, results chan<- int, wg *sync.WaitGroup) {
 		return
 	}
 	instrument.Unblock(id, jobsChan)
-	time.Sleep(120 * time.Millisecond) // имитация работы
+	time.Sleep(120 * time.Millisecond) // simulate work
 
 	instrument.Send(id, resultsChan)
 	results <- job

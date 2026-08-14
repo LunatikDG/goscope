@@ -1,7 +1,7 @@
-// Command goroutineleak — оркестратор один за другим плодит горутины, которые
-// блокируются на канале, в который никто и никогда не отправит, объявляет
-// свою работу выполненной и завершается. Утёкшие горутины остаются висеть до
-// самого конца процесса — ровно так леки и выглядят в реальных программах.
+// Command goroutineleak has an orchestrator spawn goroutines one after another;
+// each blocks on a channel nobody will ever send to. It then declares its own
+// work done and exits. The leaked goroutines stay hanging until the process
+// itself ends — exactly how leaks look in real programs.
 package main
 
 import (
@@ -18,7 +18,7 @@ const leakCount = 5
 func main() {
 	instrument.Spawn(0, "orchestrator")
 
-	never := make(chan struct{}) // никто никогда не отправит и не закроет
+	never := make(chan struct{}) // nobody will ever send to or close this
 
 	for i := 1; i <= leakCount; i++ {
 		id := i
@@ -27,12 +27,12 @@ func main() {
 			instrument.Block(id, leakChan)
 			<-never
 		}()
-		time.Sleep(60 * time.Millisecond) // разнести спавн лекнутых горутин по таймлайну
+		time.Sleep(60 * time.Millisecond) // spread the leaked goroutines' spawns out over the timeline
 	}
 
 	instrument.Done(0)
 
-	// подержать процесс живым, чтобы браузер успел увидеть зависшие горутины,
-	// прежде чем выход из main убьёт их вместе с процессом
+	// keep the process alive so the browser has time to see the hung goroutines
+	// before returning from main kills them along with the process
 	time.Sleep(3 * time.Second)
 }

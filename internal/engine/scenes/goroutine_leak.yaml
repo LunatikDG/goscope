@@ -1,6 +1,6 @@
-# Goroutine leak: оркестратор один за другим плодит горутины, которые блокируются
-# на канале, в который никто и никогда не отправит. Оркестратор считает свою работу
-# выполненной и завершается, а «протёкшие» горутины копятся, зависшие, до конца сцены.
+# Goroutine leak: the orchestrator spawns goroutines one after another, each
+# blocking on a channel nobody will ever send to. The orchestrator considers its
+# job done and finishes, while the "leaked" goroutines pile up, hanging, until the scene ends.
 name: "Goroutine leak"
 description: "An orchestrator spawns goroutines that block forever and are never cleaned up — the leak keeps growing."
 steps:

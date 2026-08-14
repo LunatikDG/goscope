@@ -1,4 +1,4 @@
-# Pipeline: producer -> stage2 -> stage3, значение проходит по двум каналам.
+# Pipeline: producer -> stage2 -> stage3, a value flows through two channels.
 name: "Pipeline"
 description: "A value flows through a chain of stages, each one transforming it before passing it on."
 steps:

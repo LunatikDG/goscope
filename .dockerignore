@@ -1,0 +1,9 @@
+.git
+.github
+bin/
+web/*.wasm
+web/wasm_exec.js
+*.md
+.idea
+.vscode
+.DS_Store

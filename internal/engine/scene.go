@@ -1,14 +1,14 @@
 package engine
 
-// Step — одно событие на таймлайне сцены (что и с кем).
+// Step — one event on the scene's timeline (what happened, to whom).
 type Step struct {
-	Label     string // подпись, напр. "worker-1"
+	Label     string // label, e.g. "worker-1"
 	Event     EventType
-	Goroutine int // id горутины — «актёра» события
-	Chan      int // id канала (для Send/Block по каналу); 0 если неприменимо
+	Goroutine int // the goroutine id — the event's "actor"
+	Chan      int // channel id (for Send/Block on a channel); 0 if not applicable
 }
 
-// Scene — сценарий: имя, короткое описание для UI и упорядоченные шаги.
+// Scene — a scenario: name, a short UI description, and ordered steps.
 type Scene struct {
 	Name        string
 	Description string

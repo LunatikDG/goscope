@@ -1,6 +1,6 @@
 package engine
 
-// GoroutineState — состояние горутины в конкретный момент.
+// GoroutineState — a goroutine's state at a given moment.
 type GoroutineState int
 
 const (
@@ -9,9 +9,9 @@ const (
 	Finished
 )
 
-// Frame - снимок мира в один момент (это и рисует рендер).
+// Frame - a snapshot of the world at one moment (this is what render draws).
 type Frame struct {
 	Goroutines map[int]GoroutineState
-	Cause      *Step // событие, породившее кадр; nil для начального
+	Cause      *Step // the event that produced this frame; nil for the initial one
 	Index      int
 }

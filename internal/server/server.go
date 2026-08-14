@@ -1,8 +1,8 @@
-// Package server содержит транспортный слой goscope: раздачу статики (веб-демо
-// на WASM) и SSE-эндпоинт, который запускает инструментированные примеры из
-// examples/ подпроцессом и стримит их события в браузер. Ничего не знает про
-// internal/engine или internal/render — тем и раскладку кадров считает WASM
-// в браузере, сервер лишь довозит сырые события.
+// Package server holds goscope's transport layer: serving the static WASM demo
+// and the SSE endpoint that runs instrumented examples from examples/ as a
+// subprocess and streams their events to the browser. It knows nothing about
+// internal/engine or internal/render — the WASM layer in the browser is what
+// folds those events into frames; the server just delivers the raw events.
 package server
 
 import (
@@ -14,19 +14,19 @@ import (
 	"time"
 )
 
-// Server — HTTP-транспорт goscope: конфиг + логгер + белый список примеров,
-// обнаруженных на диске.
+// Server — goscope's HTTP transport: config + logger + the whitelist of
+// examples discovered on disk.
 type Server struct {
 	logger   *slog.Logger
 	examples map[string]bool
 	cfg      Config
 }
 
-// New строит Server: сканирует ExamplesDir на предмет подпапок-примеров.
-// Отсутствие или пустота каталога — не фатальная ошибка: статика продолжит
-// раздаваться, а /api/run/* будет отвечать 404 всем именам.
+// New builds a Server: scans ExamplesDir for example subdirectories. A
+// missing or empty directory isn't fatal — static files keep being served,
+// and /api/run/* just returns 404 for every name.
 //
-//nolint:gocritic // Config копируется только на старте/в тестах, не в горячем пути
+//nolint:gocritic // Config is only copied at startup/in tests, not on a hot path
 func New(cfg Config, logger *slog.Logger) *Server {
 	examples, err := discoverExamples(cfg.ExamplesDir)
 	if err != nil {
@@ -55,7 +55,8 @@ func discoverExamples(dir string) (map[string]bool, error) {
 	return examples, nil
 }
 
-// Handler собирает маршруты: статика веб-демо на "/" и live-стрим на /api/run/{name}.
+// Handler wires up the routes: the WASM demo's static files on "/" and the
+// live stream on /api/run/{name}.
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(s.cfg.WebDir)))
@@ -63,8 +64,8 @@ func (s *Server) Handler() http.Handler {
 	return s.withLogging(mux)
 }
 
-// Run поднимает HTTP-сервер и блокируется, пока не отменят ctx — тогда даёт
-// текущим запросам (в том числе live-стримам) до 5с на корректное завершение.
+// Run starts the HTTP server and blocks until ctx is canceled — at which
+// point it gives in-flight requests (including live streams) up to 5s to finish cleanly.
 func (s *Server) Run(ctx context.Context) error {
 	httpSrv := &http.Server{
 		Addr:              s.cfg.Addr,
@@ -93,9 +94,9 @@ func (s *Server) Run(ctx context.Context) error {
 	}
 }
 
-// statusRecorder перехватывает код ответа для логирования, оставаясь
-// http.Flusher — это критично для /api/run/{name}: без проброса Flush
-// SSE-хендлер за этой обёрткой не смог бы стримить построчно.
+// statusRecorder captures the response status for logging while staying an
+// http.Flusher — that matters for /api/run/{name}: without forwarding Flush,
+// the SSE handler behind this wrapper couldn't stream line by line.
 type statusRecorder struct {
 	http.ResponseWriter
 	status int

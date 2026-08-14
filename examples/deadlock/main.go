@@ -1,20 +1,20 @@
-// Command deadlock — настоящее круговое ожидание: goroutine-a ждёt то, что
-// может отправить только goroutine-b, и наоборот. Ни один Send так и не
-// случается, и рантайм Go обнаруживает тупик сам — процесс завершается с
-// "fatal error: all goroutines are asleep - deadlock!". Это ожидаемо: сервер
-// запускает пример как отдельный подпроцесс именно ради такой изоляции.
+// Command deadlock is a genuine circular wait: goroutine-a waits for something
+// only goroutine-b could send, and vice versa. Neither Send ever happens, and
+// the Go runtime detects the deadlock itself — the process exits with
+// "fatal error: all goroutines are asleep - deadlock!". That's expected: the
+// server runs the example as a separate subprocess exactly for this kind of isolation.
 package main
 
 import "github.com/LunatikDG/goscope/internal/instrument"
 
 func main() {
-	waitForA := make(chan struct{}) // здесь ждёт goroutine-b то, что мог бы прислать goroutine-a
-	waitForB := make(chan struct{}) // здесь ждёт goroutine-a то, что мог бы прислать goroutine-b
+	waitForA := make(chan struct{}) // this is where goroutine-b waits for what goroutine-a could have sent
+	waitForB := make(chan struct{}) // this is where goroutine-a waits for what goroutine-b could have sent
 
 	go goroutineA(waitForB)
 	go goroutineB(waitForA)
 
-	select {} // тоже блокируемся навсегда — вместе с a и b это полноценный тупик всей программы
+	select {} // we block forever here too — together with a and b, that's a full deadlock of the whole program
 }
 
 func goroutineA(waitForB <-chan struct{}) {

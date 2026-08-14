@@ -1,6 +1,6 @@
-// Command workerpool — настоящий воркер-пул: диспетчер раздаёт задачи через
-// общий канал, и какой воркер какую задачу подхватит — решает планировщик Go,
-// а не сценарий. Инструментировано internal/instrument для стриминга в браузер.
+// Command workerpool is a real worker pool: the dispatcher hands out tasks over
+// a shared channel, and which worker picks up which task is decided by the Go
+// scheduler, not a script. Instrumented with internal/instrument for streaming to the browser.
 package main
 
 import (
@@ -25,7 +25,7 @@ func main() {
 		go worker(w, jobs, &wg)
 	}
 
-	time.Sleep(80 * time.Millisecond) // дать воркерам заблокироваться на канале до первой отправки
+	time.Sleep(80 * time.Millisecond) // give the workers time to block on the channel before the first send
 	for j := 1; j <= workerCount; j++ {
 		jobs <- j
 	}
@@ -42,7 +42,7 @@ func worker(id int, jobs <-chan int, wg *sync.WaitGroup) {
 
 	if _, ok := <-jobs; ok {
 		instrument.Unblock(id, jobsChan)
-		time.Sleep(150 * time.Millisecond) // имитация работы
+		time.Sleep(150 * time.Millisecond) // simulate work
 	}
 	instrument.Done(id)
 }

@@ -14,12 +14,12 @@ func main() {
 	os.Exit(run())
 }
 
-// run возвращает код выхода вместо того, чтобы звать os.Exit напрямую —
-// иначе defer stop() (отписка от сигналов) не успевал бы отработать.
+// run returns an exit code instead of calling os.Exit directly — otherwise
+// defer stop() (unsubscribing from signals) wouldn't get a chance to run.
 func run() int {
 	cfg, err := server.LoadConfig(os.Getenv)
 	if err != nil {
-		// логгера ещё нет: конфиг невалиден до того, как мы решили, во что логировать
+		// there's no logger yet: the config is invalid before we've even decided what to log to
 		slog.Error("invalid config", slog.Any("error", err))
 		return 1
 	}
@@ -37,7 +37,7 @@ func run() int {
 	return 0
 }
 
-//nolint:gocritic // Config копируется только один раз на старте процесса, не в горячем пути
+//nolint:gocritic // Config is only copied once at process startup, not on a hot path
 func newLogger(cfg server.Config) *slog.Logger {
 	opts := &slog.HandlerOptions{Level: cfg.LogLevel}
 

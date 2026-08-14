@@ -6,19 +6,19 @@ import (
 	"github.com/LunatikDG/goscope/internal/engine"
 )
 
-// Layout назначает каждой горутине и каналу фиксированную колонку (X),
-// посчитанную по всей сцене, чтобы линии не «прыгали» между кадрами.
+// Layout assigns each goroutine and channel a fixed column (X), computed
+// over the whole scene so lines don't "jump" between frames.
 type Layout struct {
 	gLanes                  map[int]float64 // goroutine id → X
 	cLanes                  map[int]float64 // channel id → X
-	labels                  map[int]string  // goroutine id → подпись
+	labels                  map[int]string  // goroutine id → label
 	Width, Height           float64
 	MarginTop, MarginBottom float64
 }
 
-// NewLayout сканирует всю сцену и раскладывает горутины/каналы по колонкам.
+// NewLayout scans the whole scene and lays goroutines/channels out into columns.
 func NewLayout(s engine.Scene, w, h float64) Layout {
-	const marginX = 40.0 // боковые поля, чтобы крайние линии не липли к границам
+	const marginX = 40.0 // side margins so the outermost lines don't stick to the edges
 
 	gset, cset := map[int]bool{}, map[int]bool{}
 	labels := map[int]string{}
@@ -47,7 +47,7 @@ func NewLayout(s engine.Scene, w, h float64) Layout {
 		return l
 	}
 
-	// доступная ширина за вычетом боковых полей (с фолбэком для узкого canvas)
+	// usable width minus the side margins (falls back for a narrow canvas)
 	usable, startX := w-2*marginX, marginX
 	if usable <= 0 {
 		usable, startX = w, 0

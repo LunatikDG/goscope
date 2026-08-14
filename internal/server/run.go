@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 )
 
-// handleRun запускает инструментированный пример из ExamplesDir как подпроцесс
-// и построчно стримит его stdout (NDJSON, одна строка — одно событие) в
-// браузер через Server-Sent Events. Deadlock-примеры естественно валят
-// подпроцесс рантаймом Go — это ожидаемый исход, а не ошибка стрима.
+// handleRun runs an instrumented example from ExamplesDir as a subprocess and
+// streams its stdout (NDJSON, one line per event) line by line to the browser
+// over Server-Sent Events. Deadlock examples naturally crash their subprocess
+// via the Go runtime — that's an expected outcome, not a stream error.
 func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 	name := r.PathValue("name")
 	if !s.examples[name] {
@@ -35,17 +35,17 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 
 	examplePath := filepath.Join(s.cfg.ExamplesDir, name)
 	if !filepath.IsAbs(examplePath) {
-		examplePath = "./" + examplePath // без "./" go run ищет импорт-путь, а не локальную папку
+		examplePath = "./" + examplePath // without "./" go run looks for an import path, not a local folder
 	}
 
-	//nolint:gosec // name чист: проверен по белому списку s.examples выше, не сырой ввод
+	//nolint:gosec // name is clean: checked against the s.examples whitelist above, not raw input
 	cmd := exec.CommandContext(ctx, "go", "run", examplePath)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	cmd.Stderr = &slogLineWriter{logger: s.logger, example: name} // компиляция/паника примера — в лог сервера, не клиенту
+	cmd.Stderr = &slogLineWriter{logger: s.logger, example: name} // the example's compile errors/panics go to the server log, not the client
 
 	if err := cmd.Start(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -66,22 +66,22 @@ func (s *Server) handleRun(w http.ResponseWriter, r *http.Request) {
 		flusher.Flush()
 	}
 
-	waitErr := cmd.Wait() // подпроцесс мог упасть с deadlock — это ожидаемый исход, не ошибка стрима
+	waitErr := cmd.Wait() // the subprocess may have crashed with a deadlock — that's expected, not a stream error
 	logger.Info("example finished", slog.Int("events", events), slog.Any("error", waitErr))
 
 	fmt.Fprint(w, "event: end\ndata: {}\n\n")
 	flusher.Flush()
 
-	// EventSource у браузера переподключается на любой обрыв соединения, включая
-	// чистое закрытие сервером, — а нам нужен ровно один запуск. Поэтому держим
-	// соединение открытым и ждём, пока клиент отключится сам (или не наступит
-	// общий таймаут ctx) — тогда закрытие будет клиентским, без реконнекта.
+	// The browser's EventSource reconnects on any connection drop, including a
+	// clean close from the server — but we want exactly one run. So we hold the
+	// connection open and wait for the client to disconnect itself (or for the
+	// overall ctx timeout) — that way the close is client-initiated, no reconnect.
 	<-ctx.Done()
 }
 
-// slogLineWriter превращает построчно записанные в него байты в структурные
-// slog-записи. Буферизует до перевода строки: subprocess.Stderr отдаёт данные
-// произвольными кусками, не обязательно по границам строк.
+// slogLineWriter turns bytes written to it into structured slog records, one
+// per line. It buffers up to the next newline: a subprocess's Stderr delivers
+// data in arbitrary chunks, not necessarily aligned to line boundaries.
 type slogLineWriter struct {
 	logger  *slog.Logger
 	example string

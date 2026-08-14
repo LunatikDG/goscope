@@ -13,14 +13,14 @@ func colorFor(st engine.GoroutineState) Color {
 	}
 }
 
-// RenderFrame превращает кадр в список команд отрисовки (сам не рисует).
+// RenderFrame turns a frame into a list of draw commands (it doesn't draw anything itself).
 //
 //nolint:revive // name matches the package entry-point for frame→ops conversion
 func RenderFrame(f engine.Frame, l Layout) []Op {
 	var ops []Op
 	top, bottom := l.MarginTop, l.Height-l.MarginBottom
 
-	// 1) горутина → вертикальная линия, цвет по состоянию
+	// 1) goroutine → vertical line, colored by state
 	for id, st := range f.Goroutines {
 		if x, ok := l.GoroutineX(id); ok {
 			ops = append(ops, Op{Kind: OpLine, X1: x, Y1: top, X2: x, Y2: bottom, Color: colorFor(st)})
@@ -30,7 +30,7 @@ func RenderFrame(f engine.Frame, l Layout) []Op {
 		}
 	}
 
-	// 2) канал → горизонтальная связь в момент send
+	// 2) channel → horizontal link at the moment of send
 	if f.Cause != nil && f.Cause.Event == engine.Send {
 		if gx, ok := l.GoroutineX(f.Cause.Goroutine); ok {
 			if cx, ok := l.ChannelX(f.Cause.Chan); ok {

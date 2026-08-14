@@ -2,7 +2,7 @@ package engine
 
 import "testing"
 
-// Все паттерны из библиотеки должны быть валидным YAML и грузиться без ошибок.
+// Every pattern in the library must be valid YAML and load without errors.
 func TestPatternLibraryLoads(t *testing.T) {
 	names := []string{"workerpool", "fanin_fanout", "pipeline", "deadlock", "goroutine_leak"}
 	for _, name := range names {
@@ -35,7 +35,7 @@ func countStates(f Frame) (running, blocked, finished int) {
 	return running, blocked, finished
 }
 
-// fan-in/fan-out и pipeline — «счастливые» паттерны: к концу сцены все горутины завершены.
+// fan-in/fan-out and pipeline are the "happy" patterns: by the end of the scene every goroutine has finished.
 func TestHappyPatternsEndClean(t *testing.T) {
 	for _, name := range []string{"fanin_fanout", "pipeline"} {
 		t.Run(name, func(t *testing.T) {
@@ -53,8 +53,8 @@ func TestHappyPatternsEndClean(t *testing.T) {
 	}
 }
 
-// Deadlock: круговое ожидание — обе горутины навсегда остаются Blocked,
-// ни одна не доходит до Finished.
+// Deadlock: circular wait — both goroutines stay Blocked forever,
+// neither ever reaches Finished.
 func TestDeadlockStaysStuck(t *testing.T) {
 	scene, err := LoadScene("deadlock")
 	if err != nil {
@@ -72,8 +72,8 @@ func TestDeadlockStaysStuck(t *testing.T) {
 	}
 }
 
-// Goroutine leak: оркестратор завершается, а «протёкшие» горутины копятся в Blocked
-// и никогда не освобождаются — их число только растёт от кадра к кадру.
+// Goroutine leak: the orchestrator finishes, while the "leaked" goroutines pile
+// up in Blocked and never free up — their count only grows from frame to frame.
 func TestGoroutineLeakGrowsAndNeverShrinks(t *testing.T) {
 	scene, err := LoadScene("goroutine_leak")
 	if err != nil {
