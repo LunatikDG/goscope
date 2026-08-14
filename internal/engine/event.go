@@ -2,22 +2,22 @@ package engine
 
 import "fmt"
 
-// EventType — что произошло с горутиной/каналом.
+// EventType — what happened to a goroutine/channel.
 type EventType int
 
 const (
-	Spawn   EventType = iota // родилась новая горутина
-	Block                    // заблокировалась (ждёт канал/мьютекс)
-	Unblock                  // разблокировалась
-	Send                     // отправка значения в канал
-	Done                     // горутина завершилась
+	Spawn   EventType = iota // a new goroutine was born
+	Block                    // blocked (waiting on a channel/mutex)
+	Unblock                  // unblocked
+	Send                     // sent a value into a channel
+	Done                     // the goroutine finished
 )
 
 func (e EventType) String() string {
 	return [...]string{"spawn", "block", "unblock", "send", "done"}[e]
 }
 
-// ParseEventType — обратное отображение строка → EventType, для загрузчиков форматов.
+// ParseEventType is the reverse mapping string → EventType, used by format loaders.
 func ParseEventType(s string) (EventType, error) {
 	switch s {
 	case "spawn":

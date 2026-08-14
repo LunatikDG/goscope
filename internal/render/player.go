@@ -2,13 +2,13 @@ package render
 
 import "time"
 
-// Player хранит позицию на таймлайне и по прошедшему времени
-// решает, какой кадр показывать. Никакого canvas/js — чистая логика.
+// Player holds the position on the timeline and, from elapsed time,
+// decides which frame to show. No canvas/js — pure logic.
 type Player struct {
-	total     int           // число кадров
-	stepEvery time.Duration // константная скорость: сколько держим один шаг
-	elapsed   time.Duration // накопленное время в текущем шаге
-	current   int           // индекс текущего кадра
+	total     int           // number of frames
+	stepEvery time.Duration // constant rate: how long we hold each step
+	elapsed   time.Duration // time accumulated within the current step
+	current   int           // index of the current frame
 	playing   bool
 }
 
@@ -16,8 +16,8 @@ func NewPlayer(total int, stepEvery time.Duration) *Player {
 	return &Player{total: total, stepEvery: stepEvery, playing: true}
 }
 
-// Advance добавляет прошедшее время dt и возвращает индекс кадра для отрисовки.
-// Когда накопили stepEvery — переходим к следующему шагу (по кругу).
+// Advance adds the elapsed time dt and returns the frame index to draw.
+// Once stepEvery has accumulated, we move to the next step (wrapping around).
 func (p *Player) Advance(dt time.Duration) int {
 	if !p.playing || p.total == 0 {
 		return p.current
@@ -30,7 +30,7 @@ func (p *Player) Advance(dt time.Duration) int {
 	return p.current
 }
 
-// Progress — доля прогресса внутри текущего шага [0..1), пригодится для fade.
+// Progress — fraction of progress within the current step [0..1), useful for a fade.
 func (p *Player) Progress() float64 {
 	if p.stepEvery == 0 {
 		return 0
@@ -38,7 +38,7 @@ func (p *Player) Progress() float64 {
 	return float64(p.elapsed) / float64(p.stepEvery)
 }
 
-// StepForward сдвигает на один кадр вперёд и встаёт на паузу.
+// StepForward advances one frame and pauses.
 func (p *Player) StepForward() int {
 	p.playing = false
 	p.elapsed = 0
@@ -48,7 +48,7 @@ func (p *Player) StepForward() int {
 	return p.current
 }
 
-// Restart возвращает на первый кадр и продолжает играть.
+// Restart goes back to the first frame and resumes playing.
 func (p *Player) Restart() int {
 	p.current = 0
 	p.elapsed = 0
@@ -56,14 +56,14 @@ func (p *Player) Restart() int {
 	return p.current
 }
 
-// SetStepEvery меняет скорость (длительность одного шага).
+// SetStepEvery changes the rate (the duration of one step).
 func (p *Player) SetStepEvery(d time.Duration) {
 	if d > 0 {
 		p.stepEvery = d
 	}
 }
 
-// Playing сообщает текущее состояние (пригодится для подписи кнопки).
+// Playing reports the current state (useful for a button label).
 func (p *Player) Playing() bool { return p.playing }
 func (p *Player) Pause()        { p.playing = false }
 func (p *Player) Play()         { p.playing = true }

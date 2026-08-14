@@ -53,8 +53,8 @@ func TestParseSceneInvalid(t *testing.T) {
 	}
 }
 
-// LoadScene("workerpool") должен разворачиваться в те же кадры, что и
-// программный конструктор WorkerPool(3) — YAML-версия его точная копия.
+// LoadScene("workerpool") must unroll into the same frames as the
+// programmatic WorkerPool(3) builder — the YAML version is its exact copy.
 func TestLoadSceneWorkerPoolMatchesBuilder(t *testing.T) {
 	fromYAML, err := LoadScene("workerpool")
 	if err != nil {

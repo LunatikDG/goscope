@@ -13,11 +13,11 @@ import (
 	"github.com/LunatikDG/goscope/internal/render"
 )
 
-// order — паттерны в порядке показа в навигации: от простого к «сломанному».
+// order — patterns in the order they're shown in the nav: from simple to "broken".
 var order = []string{"workerpool", "fanin_fanout", "pipeline", "deadlock", "goroutine_leak"}
 
-// liveEvent — схема одной SSE-строки, которую шлёт /api/run/{name};
-// повторяет internal/instrument.Event.
+// liveEvent — the schema of one SSE line sent by /api/run/{name};
+// mirrors internal/instrument.Event.
 type liveEvent struct {
 	Event     string `json:"event"`
 	Label     string `json:"label"`
@@ -26,8 +26,8 @@ type liveEvent struct {
 }
 
 func main() {
-	// --- данные и плеер (статичные, заранее просчитанные сцены) ---
-	stepEvery := 600 * time.Millisecond // 600мс на шаг (= ползунок 5); меняется ползунком, переживает смену паттерна
+	// --- data and player (static, precomputed scenes) ---
+	stepEvery := 600 * time.Millisecond // 600ms per step (= slider at 5); changed by the slider, survives switching patterns
 
 	var (
 		scene       engine.Scene
@@ -37,25 +37,25 @@ func main() {
 		currentName string
 	)
 
-	// --- состояние живого режима (стрим реального примера с сервера по SSE) ---
+	// --- live-mode state (streaming a real example from the server over SSE) ---
 	var (
 		live       bool
 		liveFrame  engine.Frame
 		liveSteps  []engine.Step
 		liveFolder *engine.LiveFolder
-		liveFuncs  []js.Func // колбэки текущего живого стрима — освобождаем при остановке
+		liveFuncs  []js.Func // callbacks of the current live stream — released when it stops
 	)
-	liveES := js.Undefined() // явно, а не нулевое значение js.Value — им проверяем, есть ли активное соединение
+	liveES := js.Undefined() // explicit, not js.Value's zero value — we use it to check whether a connection is active
 
-	// canvas делаем изменяемым: resize его пересоздаёт
+	// canvas is mutable: resize recreates it
 	canvas := newCanvas("canvas")
 
 	doc := js.Global().Get("document")
 
-	// уважить prefers-reduced-motion: каждый вновь загруженный паттерн стартует на паузе
+	// respect prefers-reduced-motion: every newly loaded pattern starts paused
 	reduced := js.Global().Call("matchMedia", "(prefers-reduced-motion: reduce)").Get("matches").Bool()
 
-	// единая перерисовка текущего кадра (для step, resize, цикла и живого стрима)
+	// a single redraw for the current frame (used by step, resize, the tick loop, and the live stream)
 	redraw := func() {
 		if live {
 			canvas.clear()
@@ -84,7 +84,7 @@ func main() {
 	liveStatusEl := doc.Call("getElementById", "liveStatus")
 	watchLiveBtn := doc.Call("getElementById", "watchLive")
 
-	// setActiveNav подсвечивает ссылку текущего паттерна в навигации.
+	// setActiveNav highlights the current pattern's link in the nav.
 	setActiveNav := func(name string) {
 		links := navEl.Get("children")
 		for i := 0; i < links.Length(); i++ {
@@ -100,10 +100,11 @@ func main() {
 		}
 	}
 
-	// closeLiveConnection закрывает текущий SSE-стрим (если есть) и освобождает его
-	// колбэки. Не трогает live: конец стрима не значит выход из живого режима —
-	// последний полученный кадр должен остаться на экране, а не смениться кадром
-	// фонового статичного плеера (тот всё это время тихо тикает по rAF).
+	// closeLiveConnection closes the current SSE stream (if any) and releases its
+	// callbacks. It doesn't touch live: the stream ending doesn't mean leaving
+	// live mode — the last frame received should stay on screen, not get
+	// replaced by a frame from the background static player (which keeps
+	// quietly ticking via rAF the whole time).
 	closeLiveConnection := func() {
 		if liveES.IsUndefined() {
 			return
@@ -116,7 +117,7 @@ func main() {
 		liveFuncs = nil
 	}
 
-	// loadPattern грузит встроенную сцену по имени и полностью пересобирает плеер/раскладку/UI под неё.
+	// loadPattern loads a built-in scene by name and fully rebuilds the player/layout/UI for it.
 	loadPattern := func(name string) {
 		s, err := engine.LoadScene(name)
 		if err != nil {
@@ -144,8 +145,8 @@ func main() {
 		redraw()
 	}
 
-	// строим навигацию один раз: имя + описание берём прямо из встроенных сцен —
-	// единственный источник истины, дублировать их в HTML не нужно.
+	// build the nav once: name + description come straight from the built-in
+	// scenes — the single source of truth, no need to duplicate them in the HTML.
 	for _, name := range order {
 		s, err := engine.LoadScene(name)
 		if err != nil {
@@ -173,7 +174,7 @@ func main() {
 		validNames[name] = true
 	}
 
-	// patternFromHash читает #имя-паттерна из адресной строки — это и есть пермалинк.
+	// patternFromHash reads #pattern-name from the address bar — that's the permalink.
 	patternFromHash := func() string {
 		h := strings.TrimPrefix(js.Global().Get("location").Get("hash").String(), "#")
 		if !validNames[h] {
@@ -184,25 +185,25 @@ func main() {
 
 	loadPattern(patternFromHash())
 
-	// держим все js-колбэки живыми весь сеанс
+	// keep all js callbacks alive for the whole session
 	var handlers []js.Func
 	keep := func(f js.Func) js.Func { handlers = append(handlers, f); return f }
 
-	// --- rAF-цикл (автопрогон) ---
+	// --- rAF loop (autoplay) ---
 	var raf js.Func
 	lastMs := 0.0
 	tick := func(this js.Value, args []js.Value) any {
-		nowMs := args[0].Float() // rAF передаёт timestamp в миллисекундах
+		nowMs := args[0].Float() // rAF passes the timestamp in milliseconds
 		if lastMs == 0 {
 			lastMs = nowMs
 		}
 		dt := time.Duration((nowMs - lastMs) * float64(time.Millisecond))
 		lastMs = nowMs
 
-		player.Advance(dt) // на паузе (или в живом режиме) вернёт тот же кадр
+		player.Advance(dt) // returns the same frame while paused (or in live mode)
 		redraw()
 
-		js.Global().Call("requestAnimationFrame", raf) // ← самоподдержка цикла (без этого — стоп)
+		js.Global().Call("requestAnimationFrame", raf) // ← keeps the loop going (without this it stops)
 		return nil
 	}
 	raf = keep(js.FuncOf(tick))
@@ -225,8 +226,8 @@ func main() {
 	})
 
 	on("step", "click", func() {
-		player.StepForward() // сдвиг на кадр + пауза
-		redraw()             // на паузе rAF кадр не меняет — рисуем вручную
+		player.StepForward() // step one frame forward + pause
+		redraw()             // rAF doesn't change the frame while paused — draw it manually
 		setPlayLabel()
 	})
 
@@ -235,19 +236,19 @@ func main() {
 		setPlayLabel()
 	})
 
-	// --- ползунок скорости: 1..10 → длительность шага (инверсия) ---
+	// --- speed slider: 1..10 → step duration (inverted) ---
 	on("speed", "input", func() {
 		v := doc.Call("getElementById", "speed").Get("value").String()
 		level, err := strconv.Atoi(v)
 		if err != nil {
 			return
 		}
-		// 1 (медленно) → 1000мс ... 10 (быстро) → 100мс
+		// 1 (slow) → 1000ms ... 10 (fast) → 100ms
 		stepEvery = time.Duration(1100-level*100) * time.Millisecond
 		player.SetStepEvery(stepEvery)
 	})
 
-	// --- «Watch live»: запускает настоящий пример на сервере и стримит его события по SSE ---
+	// --- "Watch live": runs a real example on the server and streams its events over SSE ---
 	on("watchLive", "click", func() {
 		closeLiveConnection()
 
@@ -304,16 +305,16 @@ func main() {
 		})))
 	})
 
-	// --- переход по пермалинку: клик по навигации меняет location.hash и рождает hashchange ---
+	// --- permalink navigation: clicking a nav link changes location.hash and fires hashchange ---
 	hashCb := js.FuncOf(func(this js.Value, args []js.Value) any {
 		loadPattern(patternFromHash())
 		return nil
 	})
 	js.Global().Call("addEventListener", "hashchange", keep(hashCb))
 
-	// --- адаптив под ширину окна ---
+	// --- responsive to window width ---
 	resizeCb := js.FuncOf(func(this js.Value, args []js.Value) any {
-		canvas = newCanvas("canvas") // пересчитать dpr/размеры
+		canvas = newCanvas("canvas") // recompute dpr/dimensions
 		if live {
 			layout = render.NewLayout(engine.Scene{Steps: liveSteps}, canvas.width, canvas.height)
 		} else {
@@ -324,9 +325,9 @@ func main() {
 	})
 	js.Global().Call("addEventListener", "resize", keep(resizeCb))
 
-	// первый кадр + запуск цикла
+	// first frame + start the loop
 	redraw()
 	js.Global().Call("requestAnimationFrame", raf)
 
-	select {} // держим программу и колбэки живыми
+	select {} // keep the program and its callbacks alive
 }

@@ -15,8 +15,8 @@ import (
 	"time"
 )
 
-// repoRoot находит корень репозитория относительно этого файла, а не текущей
-// директории `go test` (она — internal/server, а web/ и examples/ лежат выше).
+// repoRoot finds the repo root relative to this file, not go test's current
+// directory (which is internal/server, while web/ and examples/ live above it).
 func repoRoot(t *testing.T) string {
 	t.Helper()
 	_, file, _, ok := runtime.Caller(0)
@@ -91,9 +91,9 @@ func TestRunUnknownExample(t *testing.T) {
 	}
 }
 
-// TestRunLiveExample — сквозной тест транспорта: реальный подпроцесс, реальный
-// SSE-поток. pipeline выбран как самый быстрый и детерминированный по составу
-// событий из пяти примеров.
+// TestRunLiveExample is an end-to-end transport test: a real subprocess, a
+// real SSE stream. pipeline was picked as the fastest of the five examples
+// and the most deterministic in its set of events.
 func TestRunLiveExample(t *testing.T) {
 	srv := New(testConfig(t), testLogger())
 	ts := httptest.NewServer(srv.Handler())
@@ -134,9 +134,9 @@ func TestRunLiveExample(t *testing.T) {
 			sawEnd = true
 		}
 		if sawEnd {
-			// Сервер держит соединение открытым до отключения клиента (иначе
-			// EventSource браузера сам переподключился бы) — закрываем его
-			// сами, ровно как это делает браузер при получении "end".
+			// The server holds the connection open until the client disconnects
+			// (otherwise the browser's EventSource would reconnect on its own) —
+			// we close it ourselves, exactly like the browser does upon receiving "end".
 			cancel()
 			break
 		}

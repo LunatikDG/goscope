@@ -1,10 +1,10 @@
 package engine
 
-// Frames разворачивает сцену в последовательность кадров.
+// Frames unrolls the scene into a sequence of frames.
 func (s Scene) Frames() []Frame {
 	state := map[int]GoroutineState{}
 	frames := make([]Frame, 0, len(s.Steps)+1)
-	frames = append(frames, snapshot(0, state, nil)) // начальный кадр без причины
+	frames = append(frames, snapshot(0, state, nil)) // initial frame, no cause
 
 	for i := range s.Steps {
 		apply(state, s.Steps[i])
@@ -22,8 +22,8 @@ func apply(state map[int]GoroutineState, step Step) {
 	case Done:
 		state[step.Goroutine] = Finished
 	case Send:
-		// v1: сам send состояние актёра не меняет;
-		// позже здесь разблокируем получателя
+		// v1: send itself doesn't change the sender's state;
+		// later this is where we'd unblock the receiver
 	}
 }
 
@@ -35,19 +35,19 @@ func snapshot(index int, state map[int]GoroutineState, cause *Step) Frame {
 	return Frame{Index: index, Goroutines: cp, Cause: cause}
 }
 
-// LiveFolder разворачивает шаги в кадры по одному, для сцен, чья полная
-// последовательность заранее не известна (например, стримятся с сервера).
+// LiveFolder unrolls steps into frames one at a time, for scenes whose full
+// sequence isn't known upfront (e.g. streamed from the server).
 type LiveFolder struct {
 	state map[int]GoroutineState
 	index int
 }
 
-// NewLiveFolder создаёт пустой фолдер, готовый принимать шаги по мере поступления.
+// NewLiveFolder creates an empty folder, ready to accept steps as they arrive.
 func NewLiveFolder() *LiveFolder {
 	return &LiveFolder{state: map[int]GoroutineState{}}
 }
 
-// Apply применяет очередной шаг и возвращает снимок мира после него.
+// Apply applies the next step and returns a snapshot of the world after it.
 func (f *LiveFolder) Apply(step Step) Frame {
 	apply(f.state, step)
 	f.index++

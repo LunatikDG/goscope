@@ -8,7 +8,7 @@ import (
 	"github.com/LunatikDG/goscope/internal/render"
 )
 
-// canvasCtx — тонкая обёртка над 2D-контекстом canvas.
+// canvasCtx — a thin wrapper around the canvas's 2D context.
 type canvasCtx struct {
 	ctx           js.Value
 	width, height float64
@@ -21,7 +21,7 @@ func newCanvas(id string) canvasCtx {
 	if dpr == 0 {
 		dpr = 1
 	}
-	// логический размер берём из CSS-раскладки (clientWidth), с фолбэком
+	// take the logical size from the CSS layout (clientWidth), with a fallback
 	cssW := el.Get("clientWidth").Float()
 	cssH := el.Get("clientHeight").Float()
 	if cssW == 0 {
@@ -30,12 +30,12 @@ func newCanvas(id string) canvasCtx {
 	if cssH == 0 {
 		cssH = 360
 	}
-	// backing store — в dpr раз крупнее (важно: сброс width обнуляет трансформацию)
+	// the backing store is dpr times larger (note: resetting width clears the transform)
 	el.Set("width", int(cssW*dpr))
 	el.Set("height", int(cssH*dpr))
 
 	ctx := el.Call("getContext", "2d")
-	ctx.Call("scale", dpr, dpr) // теперь рисуем в CSS-пикселях, резко
+	ctx.Call("scale", dpr, dpr) // now we draw in CSS pixels, crisply
 
 	return canvasCtx{ctx: ctx, width: cssW, height: cssH}
 }
@@ -44,7 +44,7 @@ func (c canvasCtx) clear() {
 	c.ctx.Call("clearRect", 0, 0, c.width, c.height)
 }
 
-// draw исполняет список команд отрисовки.
+// draw executes a list of draw commands.
 func (c canvasCtx) draw(ops []render.Op) {
 	for _, op := range ops {
 		switch op.Kind {

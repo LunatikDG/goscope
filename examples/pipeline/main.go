@@ -1,5 +1,5 @@
-// Command pipeline — значение проходит через цепочку стадий: producer -> stage2
-// -> stage3, каждая стадия соединена собственным каналом с соседней.
+// Command pipeline sends a value through a chain of stages: producer -> stage2
+// -> stage3, each stage connected to its neighbor by its own channel.
 package main
 
 import (
@@ -23,7 +23,7 @@ func main() {
 	go stage2(ch1, ch2, done2)
 	go stage3(ch2, done3)
 
-	time.Sleep(80 * time.Millisecond) // дать стадиям заблокироваться на входных каналах
+	time.Sleep(80 * time.Millisecond) // give the stages time to block on their input channels
 
 	instrument.Spawn(0, "producer")
 	instrument.Send(0, stage1to2)

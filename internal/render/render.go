@@ -1,13 +1,13 @@
 package render
 
-// Color — CSS-цвет; canvas-адаптер применит его как есть.
+// Color — a CSS color; the canvas adapter applies it as-is.
 type Color string
 
 const (
-	ColorRunning  Color = "#22c55e" // зелёный
-	ColorBlocked  Color = "#ef4444" // красный
-	ColorFinished Color = "#9ca3af" // серый
-	ColorChannel  Color = "#3b82f6" // синий — связь канала
+	ColorRunning  Color = "#22c55e" // green
+	ColorBlocked  Color = "#ef4444" // red
+	ColorFinished Color = "#9ca3af" // gray
+	ColorChannel  Color = "#3b82f6" // blue — channel link
 )
 
 type OpKind int
@@ -17,7 +17,7 @@ const (
 	OpText
 )
 
-// Op — одна атомарная команда отрисовки (IR).
+// Op — one atomic draw command (IR).
 type Op struct {
 	Text           string
 	Color          Color

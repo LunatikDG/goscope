@@ -6,19 +6,19 @@ import (
 	"time"
 )
 
-// Config собирает всё, что нужно серверу для запуска: адрес, откуда отдавать
-// статику и примеры, таймаут одного live-запуска и настройки логирования.
-// Значения по умолчанию рассчитаны на запуск из корня репозитория (make serve).
+// Config gathers everything the server needs to start: the address, where to
+// serve static files and examples from, the timeout for one live run, and
+// logging settings. The defaults assume running from the repo root (make serve).
 type Config struct {
 	Addr        string
 	WebDir      string
 	ExamplesDir string
-	LogFormat   string // "text" или "json"
+	LogFormat   string // "text" or "json"
 	RunTimeout  time.Duration
 	LogLevel    slog.Level
 }
 
-// DefaultConfig — настройки для локального запуска без единой переменной окружения.
+// DefaultConfig — settings for a local run with zero environment variables set.
 func DefaultConfig() Config {
 	return Config{
 		Addr:        ":8080",
@@ -30,11 +30,11 @@ func DefaultConfig() Config {
 	}
 }
 
-// LoadConfig берёт DefaultConfig и переопределяет поля из переменных окружения
-// GOSCOPE_ADDR / GOSCOPE_WEB_DIR / GOSCOPE_EXAMPLES_DIR / GOSCOPE_RUN_TIMEOUT /
-// GOSCOPE_LOG_LEVEL / GOSCOPE_LOG_FORMAT — все опциональны. getenv принимается
-// параметром (а не берётся напрямую из os.Getenv), чтобы функция была тестируемой
-// без побочных эффектов на реальное окружение процесса.
+// LoadConfig takes DefaultConfig and overrides fields from the environment
+// variables GOSCOPE_ADDR / GOSCOPE_WEB_DIR / GOSCOPE_EXAMPLES_DIR /
+// GOSCOPE_RUN_TIMEOUT / GOSCOPE_LOG_LEVEL / GOSCOPE_LOG_FORMAT — all optional.
+// getenv is taken as a parameter (rather than calling os.Getenv directly) so
+// the function is testable without side effects on the real process environment.
 func LoadConfig(getenv func(string) string) (Config, error) {
 	cfg := DefaultConfig()
 

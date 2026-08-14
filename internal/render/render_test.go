@@ -6,15 +6,15 @@ import (
 	"github.com/LunatikDG/goscope/internal/engine"
 )
 
-// Вертикальных линий столько же, сколько горутин в кадре.
+// There are as many vertical lines as there are goroutines in the frame.
 func TestRenderFrameVerticalLines(t *testing.T) {
 	scene := engine.WorkerPool(3)
 	l := NewLayout(scene, 640, 360)
-	f := scene.Frames()[len(scene.Steps)/2] // кадр из середины
+	f := scene.Frames()[len(scene.Steps)/2] // a frame from the middle
 
 	lines := 0
 	for _, op := range RenderFrame(f, l) {
-		if op.Kind == OpLine && op.X1 == op.X2 { // вертикальная
+		if op.Kind == OpLine && op.X1 == op.X2 { // vertical
 			lines++
 		}
 	}
@@ -23,7 +23,7 @@ func TestRenderFrameVerticalLines(t *testing.T) {
 	}
 }
 
-// Цвет линии соответствует состоянию.
+// Line color matches the state.
 func TestRenderFrameColorByState(t *testing.T) {
 	l := NewLayout(engine.Scene{Steps: []engine.Step{{Event: engine.Spawn, Goroutine: 1}}}, 640, 360)
 	f := engine.Frame{Goroutines: map[int]engine.GoroutineState{1: engine.Blocked}}
@@ -34,14 +34,14 @@ func TestRenderFrameColorByState(t *testing.T) {
 	}
 }
 
-// В момент Send появляется ровно одна горизонтальная связь канала.
+// Exactly one horizontal channel link appears at the moment of Send.
 func TestRenderFrameSendConnector(t *testing.T) {
 	scene := engine.Scene{Steps: []engine.Step{
 		{Event: engine.Spawn, Goroutine: 0},
 		{Event: engine.Send, Goroutine: 0, Chan: 1},
 	}}
 	l := NewLayout(scene, 640, 360)
-	sendFrame := scene.Frames()[2] // кадр после Send
+	sendFrame := scene.Frames()[2] // the frame after Send
 
 	horizontal := 0
 	for _, op := range RenderFrame(sendFrame, l) {

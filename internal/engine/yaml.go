@@ -7,15 +7,15 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// yamlScene — схема YAML-файла сцены.
+// yamlScene — the schema of a scene's YAML file.
 type yamlScene struct {
 	Name        string     `yaml:"name"`
 	Description string     `yaml:"description"`
 	Steps       []yamlStep `yaml:"steps"`
 }
 
-// yamlStep — схема одного шага; Goroutine — указатель, чтобы отличить
-// пропущенное поле от явного нуля (горутина с id 0 — валидный актёр).
+// yamlStep — the schema of one step; Goroutine is a pointer so we can tell an
+// omitted field apart from an explicit zero (goroutine id 0 is a valid actor).
 type yamlStep struct {
 	Goroutine *int   `yaml:"goroutine"`
 	Event     string `yaml:"event"`
@@ -23,7 +23,7 @@ type yamlStep struct {
 	Chan      int    `yaml:"chan"`
 }
 
-// ParseScene разбирает YAML-описание сцены и валидирует его.
+// ParseScene parses a scene's YAML description and validates it.
 func ParseScene(data []byte) (Scene, error) {
 	var raw yamlScene
 	if err := yaml.Unmarshal(data, &raw); err != nil {

@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// (б) Финальное состояние worker pool: все горутины завершены.
+// (b) Final state of the worker pool: all goroutines finished.
 func TestWorkerPoolEndsClean(t *testing.T) {
 	frames := WorkerPool(3).Frames()
 	last := frames[len(frames)-1]
@@ -21,8 +21,8 @@ func TestWorkerPoolEndsClean(t *testing.T) {
 	}
 }
 
-// (а) Finished терминально: если горутина завершилась в кадре i,
-// она остаётся Finished во всех последующих кадрах.
+// (a) Finished is terminal: if a goroutine finished in frame i,
+// it stays Finished in every frame after that.
 func TestFinishedIsTerminal(t *testing.T) {
 	frames := WorkerPool(3).Frames()
 	finished := map[int]bool{}
@@ -39,7 +39,7 @@ func TestFinishedIsTerminal(t *testing.T) {
 	}
 }
 
-// Переходы состояний: каждое событие приводит горутину в ожидаемое состояние.
+// State transitions: each event drives a goroutine to the expected state.
 func TestApplyTransitions(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -63,7 +63,7 @@ func TestApplyTransitions(t *testing.T) {
 	}
 }
 
-// Число кадров = число шагов + 1 (начальный пустой кадр).
+// Frame count = step count + 1 (the initial empty frame).
 func TestFramesCount(t *testing.T) {
 	scene := WorkerPool(3)
 	got := len(scene.Frames())
@@ -73,8 +73,8 @@ func TestFramesCount(t *testing.T) {
 	}
 }
 
-// Инвариант: в любом кадре все состояния «известные»,
-// а число живых (не Finished) горутин не отрицательно.
+// Invariant: every frame only has "known" states, and the number
+// of live (non-Finished) goroutines is never negative.
 func TestFramesInvariant(t *testing.T) {
 	for _, f := range WorkerPool(3).Frames() {
 		alive := 0
@@ -83,7 +83,7 @@ func TestFramesInvariant(t *testing.T) {
 			case Running, Blocked:
 				alive++
 			case Finished:
-				// ок
+				// ok
 			default:
 				t.Fatalf("кадр %d: горутина %d в неизвестном состоянии %v", f.Index, id, st)
 			}
@@ -94,20 +94,20 @@ func TestFramesInvariant(t *testing.T) {
 	}
 }
 
-// Главный тест на граблю: кадры НЕ делят одну map.
-// Изменение состояния после снятия кадра не должно менять уже снятый кадр.
+// The main regression test: frames must NOT share one map.
+// Changing state after a frame was taken must not change that already-taken frame.
 func TestFramesAreIndependentSnapshots(t *testing.T) {
 	scene := Scene{Steps: []Step{
-		{Event: Spawn, Goroutine: 1}, // кадр 1: g1 = Running
-		{Event: Done, Goroutine: 1},  // кадр 2: g1 = Finished
+		{Event: Spawn, Goroutine: 1}, // frame 1: g1 = Running
+		{Event: Done, Goroutine: 1},  // frame 2: g1 = Finished
 	}}
 	frames := scene.Frames()
 
-	// frames[1] снят ПОСЛЕ первого шага (Spawn) → g1 должна быть Running
+	// frames[1] is taken AFTER the first step (Spawn) → g1 should be Running
 	if got := frames[1].Goroutines[1]; got != Running {
 		t.Fatalf("кадр 1: g1 = %v, ожидалось Running (кадры делят одну map?)", got)
 	}
-	// frames[2] снят после Done → g1 = Finished, но кадр 1 остался прежним
+	// frames[2] is taken after Done → g1 = Finished, but frame 1 stays unchanged
 	if got := frames[2].Goroutines[1]; got != Finished {
 		t.Fatalf("кадр 2: g1 = %v, ожидалось Finished", got)
 	}
@@ -116,8 +116,8 @@ func TestFramesAreIndependentSnapshots(t *testing.T) {
 	}
 }
 
-// LiveFolder, применяя шаги по одному, должен давать те же кадры, что и
-// Scene.Frames() при том же наборе шагов сразу.
+// LiveFolder, applying steps one at a time, must produce the same frames as
+// Scene.Frames() does for the same set of steps all at once.
 func TestLiveFolderMatchesFrames(t *testing.T) {
 	steps := WorkerPool(3).Steps
 	want := (Scene{Steps: steps}).Frames()
