@@ -11,10 +11,12 @@ const (
 	Unblock                  // unblocked
 	Send                     // sent a value into a channel
 	Done                     // the goroutine finished
+	GCStart                  // a garbage-collection range began
+	GCEnd                    // a garbage-collection range ended
 )
 
 func (e EventType) String() string {
-	return [...]string{"spawn", "block", "unblock", "send", "done"}[e]
+	return [...]string{"spawn", "block", "unblock", "send", "done", "gcstart", "gcend"}[e]
 }
 
 // ParseEventType is the reverse mapping string → EventType, used by format loaders.
@@ -30,6 +32,10 @@ func ParseEventType(s string) (EventType, error) {
 		return Send, nil
 	case "done":
 		return Done, nil
+	case "gcstart":
+		return GCStart, nil
+	case "gcend":
+		return GCEnd, nil
 	default:
 		return 0, fmt.Errorf("неизвестный тип события %q", s)
 	}
