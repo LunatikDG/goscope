@@ -24,6 +24,9 @@ func apply(state map[int]GoroutineState, step Step) {
 	case Send:
 		// v1: send itself doesn't change the sender's state;
 		// later this is where we'd unblock the receiver
+	case GCStart, GCEnd:
+		// GC ranges aren't scoped to one goroutine's rendered state (yet);
+		// they just ride along on the frame's Cause for a future GC visualization
 	}
 }
 
