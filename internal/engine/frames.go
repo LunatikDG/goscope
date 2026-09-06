@@ -38,6 +38,50 @@ func snapshot(index int, state map[int]GoroutineState, cause *Step) Frame {
 	return Frame{Index: index, Goroutines: cp, Cause: cause}
 }
 
+// SampledFrames behaves like Frames, but for scenes with more than maxFrames
+// steps it only snapshots the state at evenly spaced points instead of after
+// every single step. Every step is still applied — the state stays correct —
+// only the (expensive) full-map copy in snapshot() is skipped for the steps
+// in between. This bounds both the number of frames a caller has to hold
+// onto and the number of map copies to O(maxFrames) rather than O(len(Steps)),
+// which matters once a scene has thousands of steps (a real trace, or an
+// extreme goroutine leak) and building every frame would otherwise be what
+// hangs the browser before a single one is drawn.
+//
+// The final step is always snapshotted, so the last frame always reflects
+// the scene's true end state. maxFrames <= 0 falls back to Frames.
+func (s Scene) SampledFrames(maxFrames int) []Frame {
+	if maxFrames <= 0 || len(s.Steps) <= maxFrames {
+		return s.Frames()
+	}
+
+	state := map[int]GoroutineState{}
+	frames := make([]Frame, 0, maxFrames+1)
+	frames = append(frames, snapshot(0, state, nil))
+
+	last := len(s.Steps) - 1
+	// The last step is always kept (below), so only budget the rest of
+	// maxFrames for evenly-spaced picks — otherwise an unaligned last step
+	// would tip the total one over the cap.
+	budget := maxFrames - 1
+	if budget < 1 {
+		budget = 1
+	}
+	stride := ceilDiv(last+1, budget)
+	if stride == 0 {
+		stride = 1
+	}
+	for i := range s.Steps {
+		apply(state, s.Steps[i])
+		if i == last || i%stride == 0 {
+			frames = append(frames, snapshot(i+1, state, &s.Steps[i]))
+		}
+	}
+	return frames
+}
+
+func ceilDiv(a, b int) int { return (a + b - 1) / b }
+
 // LiveFolder unrolls steps into frames one at a time, for scenes whose full
 // sequence isn't known upfront (e.g. streamed from the server).
 type LiveFolder struct {

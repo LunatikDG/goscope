@@ -25,6 +25,13 @@ type liveEvent struct {
 	Chan      int    `json:"chan"`
 }
 
+// maxRenderedFrames caps how many frames a scene builds for playback. Past
+// this many steps, loadPattern uses Scene.SampledFrames instead of Frames so
+// a huge scene (a real trace, or an extreme goroutine leak) doesn't force
+// this single-threaded WASM main loop to build/hold a frame — and copy the
+// full goroutine-state map — for every single step before the first draw.
+const maxRenderedFrames = 500
+
 func main() {
 	// --- data and player (static, precomputed scenes) ---
 	stepEvery := 600 * time.Millisecond // 600ms per step (= slider at 5); changed by the slider, survives switching patterns
@@ -132,7 +139,7 @@ func main() {
 		watchLiveBtn.Set("textContent", "▶ Watch live: "+s.Name)
 
 		scene = s
-		frames = scene.Frames()
+		frames = scene.SampledFrames(maxRenderedFrames)
 		layout = render.NewLayout(scene, canvas.width, canvas.height)
 		player = render.NewPlayer(len(frames), stepEvery)
 		if reduced {
