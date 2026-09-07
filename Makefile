@@ -9,6 +9,7 @@ all: build wasm
 build:
 	@mkdir -p $(BIN_DIR)
 	go build -o $(BIN_DIR)/serve ./cmd/serve
+	go build -o $(BIN_DIR)/goscope ./cmd/goscope
 
 test:
 	go test ./...

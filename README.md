@@ -38,6 +38,8 @@ a visual animation you can play, pause, and step through.
 - 🌓 Light/dark theme and permalinks to a specific pattern.
 - 📡 **Watch live**: run a real instrumented Go program on the server and stream its
   actual events over SSE — genuine concurrency, not a script.
+- 🔍 **`goscope trace`**: visualize a real `runtime/trace` capture from *any* Go
+  program — not just the built-in examples — with the same play/pause/step player.
 
 ## Run locally
 
@@ -56,6 +58,23 @@ docker build -t goscope .
 docker run --rm -p 8080:8080 goscope
 ```
 
+### Visualize a real trace
+
+```bash
+make wasm                            # build the WASM demo assets once
+go build -o bin/goscope ./cmd/goscope
+
+# any runtime/trace file works (runtime/trace.Start/Stop, `go test -trace=...`);
+# cmd/traced is a ready-made example program that produces one:
+go run ./cmd/traced -trace out.trace
+
+./bin/goscope trace out.trace        # opens the visualization in your browser
+```
+
+Large traces (thousands of goroutines) are automatically sampled and rendered
+in an aggregated view instead of hanging the browser — see [`internal/engine.Scene.SampledFrames`](internal/engine/frames.go)
+and [`render.Layout`'s aggregated mode](internal/render/layout.go).
+
 ## How it works
 
 The core (`internal/engine`) models concurrency as a sequence of events and folds
@@ -70,9 +89,10 @@ frames the same way it does for the canned patterns.
 
 ## Status
 
-v0.3 — a gallery of patterns, plus live visualization of real instrumented
-programs. Roadmap: visualizing traces of arbitrary programs (`runtime/trace`).
-Ideas and PRs welcome — CI runs on every pull request.
+v0.5 (in progress) — a gallery of patterns, live visualization of real
+instrumented programs, and a `goscope trace` CLI that visualizes a
+`runtime/trace` capture of any Go program, sampled and aggregated so it stays
+responsive at scale. Ideas and PRs welcome — CI runs on every pull request.
 
 ## License
 
