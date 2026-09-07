@@ -25,6 +25,23 @@ type liveEvent struct {
 	Chan      int    `json:"chan"`
 }
 
+// wireStep and wireScene are the JSON shape served at GET /api/trace by
+// `goscope trace`; they mirror cmd/goscope's matching types, decoded here
+// independently rather than through a shared package — the same
+// decoupling liveEvent above already uses for the live-streaming wire format.
+type wireStep struct {
+	Event     string `json:"event"`
+	Label     string `json:"label"`
+	Goroutine int    `json:"goroutine"`
+	Chan      int    `json:"chan"`
+}
+
+type wireScene struct {
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Steps       []wireStep `json:"steps"`
+}
+
 // maxRenderedFrames caps how many frames a scene builds for playback. Past
 // this many steps, loadPattern uses Scene.SampledFrames instead of Frames so
 // a huge scene (a real trace, or an extreme goroutine leak) doesn't force
@@ -42,7 +59,12 @@ func main() {
 		layout      render.Layout
 		player      *render.Player
 		currentName string
+		tracing     bool // true once a `goscope trace` scene replaces the built-in gallery
 	)
+
+	// keep all js callbacks alive for the whole session
+	var handlers []js.Func
+	keep := func(f js.Func) js.Func { handlers = append(handlers, f); return f }
 
 	// --- live-mode state (streaming a real example from the server over SSE) ---
 	var (
@@ -90,6 +112,8 @@ func main() {
 	navEl := doc.Call("getElementById", "patterns")
 	liveStatusEl := doc.Call("getElementById", "liveStatus")
 	watchLiveBtn := doc.Call("getElementById", "watchLive")
+	liveBarEl := doc.Call("getElementById", "liveBar")
+	liveHintEl := doc.Call("getElementById", "liveHint")
 
 	// setActiveNav highlights the current pattern's link in the nav.
 	setActiveNav := func(name string) {
@@ -190,11 +214,75 @@ func main() {
 		return h
 	}
 
-	loadPattern(patternFromHash())
+	// loadTraceScene replaces the pattern gallery with a scene fetched from
+	// GET /api/trace (served by `goscope trace`) — the same static player,
+	// aggregation, and sampling a built-in pattern gets, just sourced from a
+	// real runtime/trace instead of an embedded YAML file.
+	loadTraceScene := func(body string) {
+		var ws wireScene
+		if err := json.Unmarshal([]byte(body), &ws); err != nil {
+			js.Global().Get("console").Call("error", "goscope: could not decode trace scene: "+err.Error())
+			loadPattern(patternFromHash())
+			return
+		}
 
-	// keep all js callbacks alive for the whole session
-	var handlers []js.Func
-	keep := func(f js.Func) js.Func { handlers = append(handlers, f); return f }
+		steps := make([]engine.Step, 0, len(ws.Steps))
+		for _, s := range ws.Steps {
+			event, err := engine.ParseEventType(s.Event)
+			if err != nil {
+				continue // an event kind this build doesn't recognize yet — skip it, keep the rest
+			}
+			steps = append(steps, engine.Step{Event: event, Goroutine: s.Goroutine, Chan: s.Chan, Label: s.Label})
+		}
+
+		tracing = true
+		closeLiveConnection()
+		live = false
+
+		scene = engine.Scene{Name: ws.Name, Description: ws.Description, Steps: steps}
+		frames = scene.SampledFrames(maxRenderedFrames)
+		layout = render.NewLayout(scene, canvas.width, canvas.height)
+		player = render.NewPlayer(len(frames), stepEvery)
+		if reduced {
+			player.Pause()
+		}
+
+		titleEl.Set("textContent", scene.Name)
+		descEl.Set("textContent", scene.Description)
+		navEl.Get("style").Set("display", "none")     // no pattern gallery in trace mode
+		liveBarEl.Get("style").Set("display", "none") // no "Watch live" — this *is* a real run
+		liveHintEl.Get("style").Set("display", "none")
+		setPlayLabel()
+		redraw()
+	}
+
+	// tryLoadTrace checks whether the server is running `goscope trace`
+	// (GET /api/trace exists) and loads that scene; otherwise it falls back
+	// to the ordinary pattern gallery. Fetch is async, so this wires up
+	// Promise callbacks rather than returning a value.
+	tryLoadTrace := func() {
+		onError := keep(js.FuncOf(func(this js.Value, args []js.Value) any {
+			loadPattern(patternFromHash())
+			return nil
+		}))
+		onText := keep(js.FuncOf(func(this js.Value, args []js.Value) any {
+			loadTraceScene(args[0].String())
+			return nil
+		}))
+		onResponse := keep(js.FuncOf(func(this js.Value, args []js.Value) any {
+			resp := args[0]
+			if !resp.Get("ok").Bool() {
+				loadPattern(patternFromHash())
+				return nil
+			}
+			resp.Call("text").Call("then", onText)
+			return nil
+		}))
+
+		js.Global().Call("fetch", "/api/trace").Call("then", onResponse).Call("catch", onError)
+	}
+
+	tryLoadTrace()
 
 	// --- rAF loop (autoplay) ---
 	var raf js.Func
@@ -314,6 +402,9 @@ func main() {
 
 	// --- permalink navigation: clicking a nav link changes location.hash and fires hashchange ---
 	hashCb := js.FuncOf(func(this js.Value, args []js.Value) any {
+		if tracing { // the nav is hidden in trace mode; there's nothing to switch to
+			return nil
+		}
 		loadPattern(patternFromHash())
 		return nil
 	})
