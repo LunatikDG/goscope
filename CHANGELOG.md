@@ -8,6 +8,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] — 2026-09-07
+
+### Added
+- `internal/tracer`: a thin wrapper around `runtime/trace.Start`/`Stop`, plus `cmd/traced` — an example program that records a real trace to a file.
+- `internal/traceparse`: parses a `runtime/trace` stream via `golang.org/x/exp/trace` into `engine.Step` values — goroutine spawn/block/unblock/done and GC ranges — so real traces flow through the same engine the built-in patterns use.
+- Proof that parsed real-trace steps render through the existing `engine`/`render` pipeline unchanged — no special-casing needed for real data versus scripted patterns.
+- Scale: `Scene.SampledFrames` snapshots state at evenly spaced points instead of after every single step once a scene has more steps than a cap, and `render.Layout` switches into an aggregated (count-based) rendering mode past a goroutine-count threshold — together keeping a scene with thousands of goroutines (a real trace, or an extreme leak) from hanging the browser.
+- `cmd/goscope`: a CLI — `goscope trace <path>` parses a trace file, serves it to the existing WASM demo at `GET /api/trace`, and opens the visualization in the browser. `cmd/webdemo` picks this endpoint up automatically, falling back to the built-in pattern gallery when it's absent.
+
 ## [0.3.0] — 2026-08-14
 
 ### Added
@@ -30,5 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Color-coded states and channel links; labels and a legend.
 - A live demo on GitHub Pages, CI (lint + race tests + WASM build).
 
+[0.5.0]: https://github.com/LunatikDG/goscope/releases/tag/v0.5.0
 [0.3.0]: https://github.com/LunatikDG/goscope/releases/tag/v0.3.0
 [0.1.0]: https://github.com/LunatikDG/goscope/releases/tag/v0.1.0

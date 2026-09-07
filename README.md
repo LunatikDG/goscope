@@ -89,10 +89,10 @@ frames the same way it does for the canned patterns.
 
 ## Status
 
-v0.5 (in progress) — a gallery of patterns, live visualization of real
-instrumented programs, and a `goscope trace` CLI that visualizes a
-`runtime/trace` capture of any Go program, sampled and aggregated so it stays
-responsive at scale. Ideas and PRs welcome — CI runs on every pull request.
+v0.5 — a gallery of patterns, live visualization of real instrumented
+programs, and a `goscope trace` CLI that visualizes a `runtime/trace` capture
+of any Go program, sampled and aggregated so it stays responsive at scale.
+Ideas and PRs welcome — CI runs on every pull request.
 
 ## License
 
